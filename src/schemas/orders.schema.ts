@@ -16,27 +16,24 @@ export class Orders {
 
   @Prop({ required: true, type: String })
   service: string;
-
-    @Prop({ type: [{ type: Types.ObjectId, ref: 'Order' }], default: [] })
-  orderIds: Types.ObjectId[];
   
   @Prop({
     type: {
-      products: { type: [String], required: true },
-      type: { 
+      products: { type: [String] },
+       typeGuarantee: { 
         type: String, 
         required: true,
         enum: ['قلم حراري','عوازل حرارية']
       },
-      startDate: { type: Date, required: true },
-      endDate: { type: Date, required: true },
+      startDate: { type: Date },
+      endDate: { type: Date },
       terms: { type: String },
       coveredComponents: { type: [String] }
-    },
+     },
   })
   guarantee: {
     products: string[];
-    type: string;
+     typeGuarantee: string;
     startDate: Date;
     endDate: Date;
     terms?: string;

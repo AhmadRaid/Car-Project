@@ -68,7 +68,7 @@ export class AuthService {
   // }
 
   async createUser(loginAuthDto: SignUpAuthDto) {
-    const { fullName, userName, email, password } = loginAuthDto;
+    const { fullName, email, password } = loginAuthDto;
 
     const existingEmailUser = await this.userModel.findOne({
       email,
@@ -80,7 +80,7 @@ export class AuthService {
     }
 
     const existingUserNameUser = await this.userModel.findOne({
-      userName,
+      fullName,
       isDeleted: false,
     });
 
@@ -94,7 +94,6 @@ export class AuthService {
       email,
       password: hashedPassword,
       fullName,
-      userName,
     });
 
     await newUser.save();

@@ -20,25 +20,25 @@ import { generateUploadConfig } from 'src/config/upload.file.config';
 import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';
 
 @Controller('clients')
-@UseGuards(JwtAuthGuard)
+//@UseGuards(JwtAuthGuard)
 export class ClientController {
   constructor(private readonly clientService: ClientService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('image', generateUploadConfig('clients')))
   async createClient(
     @Body() createClientDto: any,
-    @UploadedFile() image?: Express.Multer.File,
   ) {
     try {
       return await this.clientService.createClient({
         ...createClientDto,
-        image: image?.path,
       });
+
     } catch (error) {
       if (error instanceof ConflictException) {
         throw new ConflictException('Client with this phone already exists');
       }
+                console.log('errrrrrrrrrrrrrror',error);
+
       throw new BadRequestException('Failed to create client');
     }
   }

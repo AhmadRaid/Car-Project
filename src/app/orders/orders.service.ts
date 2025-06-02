@@ -107,11 +107,11 @@ import { Orders, OrdersDocument } from 'src/schemas/orders.schema';
       });
     }
   
-    async checkGuaranteeValidity(orderId: string): Promise<boolean> {
-      const order = await this.findOne(orderId);
-      const today = new Date();
-      return (
-        order.guarantee.startDate <= today && order.guarantee.endDate >= today
-      );
-    }
+    // async checkGuaranteeValidity(orderId: string): Promise<boolean> {
+    //   const order = await this.findOne(orderId);
+    //   const today = new Date();
+    //   return (
+    //     order.guarantee.startDate <= today && order.guarantee.endDate >= today
+    //   );
+    // }
   }

@@ -23,7 +23,7 @@ export class ClientService {
       const existingClient = await this.clientModel.findOne({
         phone: createClientDto.phone,
       });
-  
+
       let clientId;
       if (!existingClient) {
         const createdClient = await this.clientModel.create(createClientDto);
@@ -31,7 +31,21 @@ export class ClientService {
       } else {
         clientId = existingClient._id;
       }
-  
+
+      console.log('Order creation data:', {
+        clientId,
+        carModel: createClientDto.carModel,
+        carColor: createClientDto.carColor,
+        service: createClientDto.service,
+        guarantee: {
+          products: createClientDto.guarantee.products,
+          type: createClientDto.guarantee.type,
+          startDate: createClientDto.guarantee.startDate,
+          endDate: createClientDto.guarantee.endDate,
+          terms: createClientDto.guarantee.terms,
+          coveredComponents: createClientDto.guarantee.coveredComponents,
+        },
+      });
       // Create the order
       await this.ordersModel.create({
         clientId: clientId,
@@ -39,17 +53,16 @@ export class ClientService {
         carColor: createClientDto.carColor,
         service: createClientDto.service,
         guarantee: {
-          products: createClientDto.products,
-          type: createClientDto.type,
-          startDate: createClientDto.startDate,
-          endDate: createClientDto.endDate,
-          terms: createClientDto.terms,
-          coveredComponents: createClientDto.coveredComponents,
-        }
+          products: createClientDto.guarantee.products,
+          typeGuarantee: createClientDto.guarantee.typeGuarantee,
+          startDate: createClientDto.guarantee.startDate,
+          endDate: createClientDto.guarantee.endDate,
+          terms: createClientDto.guarantee.terms,
+          coveredComponents: createClientDto.guarantee.coveredComponents,
+        },
       });
-  
-      return existingClient || await this.clientModel.findById(clientId);
-  
+
+      return existingClient || (await this.clientModel.findById(clientId));
     } catch (error) {
       if (error instanceof ConflictException) {
         throw error;
