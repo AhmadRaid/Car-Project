@@ -68,7 +68,7 @@ export class AuthService {
   // }
 
   async createUser(loginAuthDto: SignUpAuthDto) {
-    const { fullName, email, password } = loginAuthDto;
+    const { fullName, email, password, role } = loginAuthDto;
 
     const existingEmailUser = await this.userModel.findOne({
       email,
@@ -94,6 +94,7 @@ export class AuthService {
       email,
       password: hashedPassword,
       fullName,
+      role,
     });
 
     await newUser.save();
@@ -102,8 +103,6 @@ export class AuthService {
       message: 'USER.CREATED',
     };
   }
-
-
 
   async login(loginAuthDto: LoginAuthDto, deviceId: string) {
     const { email, password } = loginAuthDto;
@@ -134,13 +133,12 @@ export class AuthService {
 
     return {
       accessToken,
-      refreshToken,
       user: new UserResponseDto(user),
     };
   }
 
   async generateTokens(
-    user:any,
+    user: any,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const payload = { _id: user._id, email: user.email };
 

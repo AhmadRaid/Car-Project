@@ -19,50 +19,46 @@ export class ClientService {
 
   async createClient(createClientDto: any): Promise<Client> {
     try {
-      // Check if email already exists
+      // Check if client already exists
       const existingClient = await this.clientModel.findOne({
         phone: createClientDto.phone,
       });
 
       let clientId;
+      let client;
+
       if (!existingClient) {
-        const createdClient = await this.clientModel.create(createClientDto);
-        clientId = createdClient._id;
+        client = await this.clientModel.create(createClientDto);
+        clientId = client._id;
       } else {
         clientId = existingClient._id;
+        client = existingClient;
       }
 
-      console.log('Order creation data:', {
-        clientId,
+      const createdOrder = await this.ordersModel.create({
+        clientId: new Types.ObjectId(clientId),
         carModel: createClientDto.carModel,
         carColor: createClientDto.carColor,
         service: createClientDto.service,
-        guarantee: {
-          products: createClientDto.guarantee.products,
-          type: createClientDto.guarantee.type,
-          startDate: createClientDto.guarantee.startDate,
-          endDate: createClientDto.guarantee.endDate,
-          terms: createClientDto.guarantee.terms,
-          coveredComponents: createClientDto.guarantee.coveredComponents,
-        },
-      });
-      // Create the order
-      await this.ordersModel.create({
-        clientId: clientId,
-        carModel: createClientDto.carModel,
-        carColor: createClientDto.carColor,
-        service: createClientDto.service,
-        guarantee: {
-          products: createClientDto.guarantee.products,
-          typeGuarantee: createClientDto.guarantee.typeGuarantee,
-          startDate: createClientDto.guarantee.startDate,
-          endDate: createClientDto.guarantee.endDate,
-          terms: createClientDto.guarantee.terms,
-          coveredComponents: createClientDto.guarantee.coveredComponents,
-        },
+        guarantee: [
+          {
+            products: createClientDto.guarantee.products,
+            typeGuarantee: createClientDto.guarantee.typeGuarantee,
+            startDate: createClientDto.guarantee.startDate,
+            endDate: createClientDto.guarantee.endDate,
+            terms: createClientDto.guarantee.terms,
+            coveredComponents: createClientDto.guarantee.coveredComponents,
+          },
+        ],
       });
 
-      return existingClient || (await this.clientModel.findById(clientId));
+      await this.clientModel.findByIdAndUpdate(
+        clientId,
+        { $push: { orderIds: createdOrder._id } },
+        { new: true },
+      );
+
+      return client;
     } catch (error) {
       if (error instanceof ConflictException) {
         throw error;
@@ -71,125 +67,176 @@ export class ClientService {
     }
   }
 
-  async getAllClients(status?: any): Promise<Client[]> {
-    const query: any = { isDeleted: false };
-    if (status) {
-      query.status = status;
-    }
-    return this.clientModel.find(query).exec();
-  }
-
-  async getClientById(id: string): Promise<Client> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid client ID');
-    }
-
-    const client = await this.clientModel.findOne({
-      _id: new Types.ObjectId(id),
-      isDeleted: false,
-    });
-
-    if (!client) {
-      throw new NotFoundException('Client not found');
-    }
-
-    return client;
-  }
-
-  async updateClient(
-    id: string,
-    updateClientDto: any,
-    image?: Express.Multer.File,
-  ): Promise<Client> {
+  async getClientWithOrders(clientId: string): Promise<any> {
     try {
-      if (!Types.ObjectId.isValid(id)) {
+      // Validate clientId
+      if (!Types.ObjectId.isValid(clientId)) {
         throw new BadRequestException('Invalid client ID');
       }
 
-      // Handle image upload if image is provided
-      if (image) {
-        const fileName = `${image.originalname}-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-        const firebaseImageUrl = await uploadStorageFile(
-          fileName,
-          'clients',
-          image.mimetype,
-          image.path,
-        );
-        updateClientDto.image = firebaseImageUrl;
-      }
+      const result = await this.clientModel.aggregate([
+        // Match the client by ID
+        { $match: { _id: new Types.ObjectId(clientId) } },
 
-      // Check if email is being updated and if it already exists
-      if (updateClientDto.email) {
-        const existingClient = await this.clientModel.findOne({
-          email: updateClientDto.email,
-          _id: { $ne: new Types.ObjectId(id) },
-        });
+        // Lookup to join with orders collection
+        {
+          $lookup: {
+            from: 'orders',
+            localField: 'orderIds',
+            foreignField: '_id',
+            as: 'orders',
+            pipeline: [
+              { $match: { isDeleted: false } },
+              { $sort: { createdAt: -1 } },
+              { $project: { isDeleted: 0, __v: 0 } },
+            ],
+          },
+        },
 
-        if (existingClient) {
-          throw new ConflictException('Email already exists');
-        }
-      }
+        // Add computed fields
+        {
+          $addFields: {
+            orderStats: {
+              totalOrders: { $size: '$orders' },
+              activeGuarantees: {
+                $size: {
+                  $filter: {
+                    input: '$orders',
+                    as: 'order',
+                    cond: { $gt: ['$$order.guarantee.endDate', new Date()] },
+                  },
+                },
+              },
+            },
+          },
+        },
 
-      const updatedClient = await this.clientModel.findByIdAndUpdate(
-        new Types.ObjectId(id),
-        { $set: updateClientDto },
-        { new: true },
-      );
+        // Project to exclude orderIds
+        {
+          $project: {
+            orderIds: 0, // Explicitly exclude orderIds
+            __v: 0, // Also excluding version key as it's typically not needed
+          },
+        },
+      ]);
 
-      if (!updatedClient) {
+      if (!result || result.length === 0) {
         throw new NotFoundException('Client not found');
       }
 
-      return updatedClient;
+      return {
+        status: 'success',
+        code: 200,
+        data: result[0],
+        message: 'تمت العملية بنجاح',
+      };
     } catch (error) {
       if (
-        error instanceof BadRequestException ||
         error instanceof NotFoundException ||
-        error instanceof ConflictException
+        error instanceof BadRequestException
       ) {
         throw error;
       }
-      throw new BadRequestException('Failed to update client');
+      throw new BadRequestException('Failed to fetch client data');
     }
   }
 
-  async updateClientStatus(id: string, status: any): Promise<Client> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid client ID');
+  async getClients(): Promise<any> {
+    try {
+
+      return await this.clientModel.aggregate([
+        // Project to exclude orderIds
+        {
+          $project: {
+            orderIds: 0, // Explicitly exclude orderIds
+            __v: 0, // Also excluding version key as it's typically not needed
+          },
+        },
+      ]);
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to fetch client data');
     }
-
-    const updatedClient = await this.clientModel.findByIdAndUpdate(
-      new Types.ObjectId(id),
-      { status },
-      { new: true },
-    );
-
-    if (!updatedClient) {
-      throw new NotFoundException('Client not found');
-    }
-
-    return updatedClient;
   }
 
-  async deleteClient(id: string): Promise<{ message: string }> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid client ID');
+  async searchClients(searchTerm: string): Promise<any> {
+    try {
+      // Check if searchTerm is empty
+      if (!searchTerm || searchTerm.trim() === '') {
+        throw new BadRequestException('Search term is required');
+      }
+
+      const results = await this.clientModel.aggregate([
+        {
+          $match: {
+            $or: [
+              { fullName: { $regex: searchTerm, $options: 'i' } }, // Case-insensitive regex search
+              { phone: { $regex: searchTerm, $options: 'i' } },
+            ],
+            isDeleted: false, // Only non-deleted clients
+          },
+        },
+        // Lookup to join with orders collection
+        {
+          $lookup: {
+            from: 'orders',
+            localField: 'orderIds',
+            foreignField: '_id',
+            as: 'orders',
+            pipeline: [
+              { $match: { isDeleted: false } },
+              { $sort: { createdAt: -1 } },
+              { $project: { isDeleted: 0, __v: 0 } },
+            ],
+          },
+        },
+        // Add computed fields
+        {
+          $addFields: {
+            orderStats: {
+              totalOrders: { $size: '$orders' },
+              activeGuarantees: {
+                $size: {
+                  $filter: {
+                    input: '$orders',
+                    as: 'order',
+                    cond: { $gt: ['$$order.guarantee.endDate', new Date()] },
+                  },
+                },
+              },
+            },
+          },
+        },
+        // Project to exclude orderIds
+        {
+          $project: {
+            orderIds: 0,
+            __v: 0,
+            isDeleted: 0,
+          },
+        },
+        // Sort by most recent first
+        { $sort: { createdAt: -1 } },
+        // Limit results if needed
+        { $limit: 20 },
+      ]);
+
+      return {
+        status: 'success',
+        code: 200,
+        data: results,
+        message: 'تمت العملية بنجاح',
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to search clients');
     }
-
-    const result = await this.clientModel.findByIdAndUpdate(
-      new Types.ObjectId(id),
-      { isDeleted: true },
-      { new: true },
-    );
-
-    if (!result) {
-      throw new NotFoundException('Client not found');
-    }
-
-    return { message: 'Client deleted successfully' };
-  }
-
-  async findClientByEmail(email: string): Promise<Client | null> {
-    return this.clientModel.findOne({ email, isDeleted: false }).exec();
   }
 }

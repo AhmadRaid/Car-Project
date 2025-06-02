@@ -5,8 +5,8 @@ export type OrdersDocument = Orders & Document;
 
 @Schema({ timestamps: true })
 export class Orders {
-  @Prop({ required: true, type: String, ref: 'Client' })
-  clientId: string;
+  @Prop({ required: true, type: Types.ObjectId, ref: 'Client' })
+  clientId: Types.ObjectId;
 
   @Prop({ required: true, type: String })
   carModel: string;
@@ -16,29 +16,39 @@ export class Orders {
 
   @Prop({ required: true, type: String })
   service: string;
-  
+
   @Prop({
-    type: {
-      products: { type: [String] },
-       typeGuarantee: { 
-        type: String, 
-        required: true,
-        enum: ['قلم حراري','عوازل حرارية']
+    type: [
+      {
+        products: { type: [String], required: true },
+        typeGuarantee: {
+          type: String,
+          required: true,
+          enum: ['قلم حماية', 'عوازل حرارية'],
+        },
+        startDate: { type: Date },
+        endDate: { type: Date },
+        terms: { type: String },
+        status: {
+          type: String,
+          enum: ['active', 'inactive'],
+          default: 'active',
+        },
+        coveredComponents: { type: [String] },
       },
-      startDate: { type: Date },
-      endDate: { type: Date },
-      terms: { type: String },
-      coveredComponents: { type: [String] }
-     },
+    ],
   })
-  guarantee: {
-    products: string[];
-     typeGuarantee: string;
-    startDate: Date;
-    endDate: Date;
-    terms?: string;
-    coveredComponents?: string[];
-  };
+  guarantee: [
+    {
+      products: string[];
+      typeGuarantee: string;
+      startDate: Date;
+      endDate: Date;
+      terms?: string;
+      status?: string;
+      coveredComponents?: string[];
+    },
+  ];
 
   @Prop({ type: Boolean, default: false })
   isDeleted: boolean;
@@ -46,12 +56,12 @@ export class Orders {
   // Virtual for guarantee duration in days
   @Prop({
     virtual: true,
-    get: function() {
+    get: function () {
       const diffTime = Math.abs(
-        this.guarantee.endDate.getTime() - this.guarantee.startDate.getTime()
+        this.guarantee.endDate.getTime() - this.guarantee.startDate.getTime(),
       );
       return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    }
+    },
   })
   guaranteeDurationDays: number;
 }

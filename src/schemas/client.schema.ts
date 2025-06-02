@@ -20,7 +20,7 @@ export class Client {
   @Prop({ type: String })
   phone: string;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Order' }], default: [] })
+  @Prop({ type: [Types.ObjectId], ref: 'Order', default: [] })
   orderIds: Types.ObjectId[];
 
   @Prop({ type: String })

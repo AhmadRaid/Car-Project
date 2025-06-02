@@ -22,5 +22,5 @@ export class SignUpAuthDto {
 
   @IsString()
   @IsNotEmpty()
-  readonly userName: string;
+  readonly role: string;
 }
