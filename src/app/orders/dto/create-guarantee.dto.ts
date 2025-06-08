@@ -1,14 +1,14 @@
-import { 
-  IsArray, 
-  IsDate, 
-  IsIn, 
-  IsOptional, 
-  IsString, 
+import {
+  IsArray,
+  IsDate,
+  IsIn,
+  IsOptional,
+  IsString,
   Validate,
   ValidationArguments,
   ValidatorConstraint,
   ValidatorConstraintInterface,
-  MinDate
+  MinDate,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -24,10 +24,12 @@ class IsAfterConstraint implements ValidatorConstraintInterface {
 }
 
 export class AddGuaranteeDto {
-  @IsArray()
-  products: string[];
+  @IsString()
+  products: string;
 
-  @IsIn(['قلم حماية', 'عوازل حرارية'])
+  @IsIn(['فلم حماية', 'عوازل حرارية'], {
+    message: 'typeGuarantee must be either "فلم حماية" or "عوازل حرارية"',
+  })
   typeGuarantee: string;
 
   @IsDate()

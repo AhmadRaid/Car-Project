@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { PaginationDto } from 'src/common/pagination-dto/pagination.dto';
 import { uploadStorageFile } from 'src/config/firebase.config';
 import { Client, ClientDocument } from 'src/schemas/client.schema';
 import { Orders, OrdersDocument } from 'src/schemas/orders.schema';
@@ -141,47 +142,21 @@ export class ClientService {
     }
   }
 
-  async getClients(): Promise<any> {
+  async getClients(paginationDto: PaginationDto) {
     try {
+      const { limit = 10, offset = 0, searchTerm } = paginationDto;
 
-      return await this.clientModel.aggregate([
-        // Project to exclude orderIds
-        {
-          $project: {
-            orderIds: 0, // Explicitly exclude orderIds
-            __v: 0, // Also excluding version key as it's typically not needed
-          },
-        },
-      ]);
-    } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
+      // Validate pagination parameters
+      if (limit < 1 || limit > 100) {
+        throw new BadRequestException('Limit must be between 1 and 100');
       }
-      throw new BadRequestException('Failed to fetch client data');
-    }
-  }
-
-  async searchClients(searchTerm: string): Promise<any> {
-    try {
-      // Check if searchTerm is empty
-      if (!searchTerm || searchTerm.trim() === '') {
-        throw new BadRequestException('Search term is required');
+      if (offset < 0) {
+        throw new BadRequestException('Offset must be positive');
       }
 
-      const results = await this.clientModel.aggregate([
-        {
-          $match: {
-            $or: [
-              { fullName: { $regex: searchTerm, $options: 'i' } }, // Case-insensitive regex search
-              { phone: { $regex: searchTerm, $options: 'i' } },
-            ],
-            isDeleted: false, // Only non-deleted clients
-          },
-        },
-        // Lookup to join with orders collection
+      // Base pipeline stages
+      const pipeline: any[] = [
+        { $match: { isDeleted: false } },
         {
           $lookup: {
             from: 'orders',
@@ -195,7 +170,6 @@ export class ClientService {
             ],
           },
         },
-        // Add computed fields
         {
           $addFields: {
             orderStats: {
@@ -212,7 +186,6 @@ export class ClientService {
             },
           },
         },
-        // Project to exclude orderIds
         {
           $project: {
             orderIds: 0,
@@ -220,23 +193,46 @@ export class ClientService {
             isDeleted: 0,
           },
         },
-        // Sort by most recent first
         { $sort: { createdAt: -1 } },
-        // Limit results if needed
-        { $limit: 20 },
-      ]);
+      ];
+
+      // Add search if term exists
+      if (searchTerm?.trim()) {
+        pipeline.unshift({
+          $match: {
+            $or: [
+              { fullName: { $regex: searchTerm, $options: 'i' } },
+              { phone: { $regex: searchTerm, $options: 'i' } },
+            ],
+          },
+        });
+      }
+
+      // Get total count
+      const countPipeline = [...pipeline, { $count: 'total' }];
+      const totalResult = await this.clientModel.aggregate(countPipeline).exec();
+      const total = totalResult[0]?.total || 0;
+
+      // Add pagination
+      const results = await this.clientModel.aggregate([
+        ...pipeline,
+        { $skip: offset },
+        { $limit: limit },
+      ]).exec();
 
       return {
-        status: 'success',
-        code: 200,
-        data: results,
-        message: 'تمت العملية بنجاح',
-      };
+          clients: results,
+          pagination: {
+            total,
+            limit,
+            offset,
+          },
+        }
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException('Failed to search clients');
+      throw new BadRequestException('Failed to fetch clients');
     }
   }
 }
