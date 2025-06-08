@@ -20,7 +20,7 @@ export class Orders {
   @Prop({
     type: [
       {
-        products: { type: String, required: true },
+        products: { type: String },
         typeGuarantee: {
           type: String,
           required: true,
@@ -40,7 +40,7 @@ export class Orders {
   })
   guarantee: [
     {
-      products: string[];
+      products: string;
       typeGuarantee: string;
       startDate: Date;
       endDate: Date;
