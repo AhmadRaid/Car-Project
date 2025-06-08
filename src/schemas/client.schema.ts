@@ -8,16 +8,16 @@ export type ClientDocument = Client & Document;
   timestamps: true,
 })
 export class Client {
-  @Prop({ type: String })
+  @Prop({ type: String,required:true })
   fullName: string;
 
-  @Prop({ type: String, unique: true })
+  @Prop({ type: String })
   email: string;
 
   @Prop({ type: String, enum: ClientType })
   clientType: ClientType;
 
-  @Prop({ type: String })
+  @Prop({ type: String,required:true })
   phone: string;
 
   @Prop({ type: [Types.ObjectId], ref: 'Order', default: [] })

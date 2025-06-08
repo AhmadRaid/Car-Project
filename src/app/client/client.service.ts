@@ -23,13 +23,17 @@ export class ClientService {
       // Check if client already exists
       const existingClient = await this.clientModel.findOne({
         phone: createClientDto.phone,
+        fullName: createClientDto.fullName,
       });
+      console.log('55555555555555555555',createClientDto.phone,createClientDto.fullName);
+      
 
       let clientId;
       let client;
 
       if (!existingClient) {
         client = await this.clientModel.create(createClientDto);
+
         clientId = client._id;
       } else {
         clientId = existingClient._id;
@@ -210,24 +214,24 @@ export class ClientService {
 
       // Get total count
       const countPipeline = [...pipeline, { $count: 'total' }];
-      const totalResult = await this.clientModel.aggregate(countPipeline).exec();
+      const totalResult = await this.clientModel
+        .aggregate(countPipeline)
+        .exec();
       const total = totalResult[0]?.total || 0;
 
       // Add pagination
-      const results = await this.clientModel.aggregate([
-        ...pipeline,
-        { $skip: offset },
-        { $limit: limit },
-      ]).exec();
+      const results = await this.clientModel
+        .aggregate([...pipeline, { $skip: offset }, { $limit: limit }])
+        .exec();
 
       return {
-          clients: results,
-          pagination: {
-            total,
-            limit,
-            offset,
-          },
-        }
+        clients: results,
+        pagination: {
+          total,
+          limit,
+          offset,
+        },
+      };
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;

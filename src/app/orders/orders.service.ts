@@ -108,14 +108,6 @@ export class OrdersService {
     });
   }
 
-  // async checkGuaranteeValidity(orderId: string): Promise<boolean> {
-  //   const order = await this.findOne(orderId);
-  //   const today = new Date();
-  //   return (
-  //     order.guarantee.startDate <= today && order.guarantee.endDate >= today
-  //   );
-  // }
-
   async manuallyUpdateGuaranteeStatus(
     orderId: string,
     guaranteeIndex: number,
@@ -143,6 +135,7 @@ export class OrdersService {
       if (!guarantees || guarantees.length === 0) {
         throw new BadRequestException('This order has no guarantees');
       }
+
 
       // Validate guarantee index
       if (

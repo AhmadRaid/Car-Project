@@ -18,6 +18,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { ClientModule } from './app/client/client.module';
 import { OrdersModule } from './app/orders/orders.module';
+import { ServiceModule } from './app/service/service.module';
 
 @Module({
   imports: AppImports,
