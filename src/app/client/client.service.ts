@@ -45,7 +45,6 @@ export class ClientService {
         service: createClientDto.service,
         guarantee: [
           {
-            products: createClientDto.guarantee.products,
             typeGuarantee: createClientDto.guarantee.typeGuarantee,
             startDate: createClientDto.guarantee.startDate,
             endDate: createClientDto.guarantee.endDate,
@@ -127,12 +126,7 @@ export class ClientService {
         throw new NotFoundException('Client not found');
       }
 
-      return {
-        status: 'success',
-        code: 200,
-        data: result[0],
-        message: 'تمت العملية بنجاح',
-      };
+      return result[0]
     } catch (error) {
       if (
         error instanceof NotFoundException ||

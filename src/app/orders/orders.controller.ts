@@ -14,6 +14,8 @@ import {
 import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';
 import { OrdersService } from './orders.service';
 import { AddGuaranteeDto } from './dto/create-guarantee.dto';
+import { Role } from 'src/common/decorators/roles.decorator';
+import { userRoles } from 'src/common/enum/userRoles.enum';
 
 @Controller('orders')
 //@UseGuards(JwtAuthGuard)
@@ -61,15 +63,16 @@ export class OrdersController {
   async findActiveGuarantees() {
     return this.ordersService.findActiveGuarantees();
   }
-  @Patch(':orderId/guarantees/:guaranteeIndex/status')
+  
+  @Patch(':orderId/guarantee/:guaranteeId/status')
   async updateGuaranteeStatus(
     @Param('orderId') orderId: string,
-    @Param('guaranteeIndex') guaranteeIndex: number,
+    @Param('guaranteeId') guaranteeId: string,
     @Body('status') newStatus: 'active' | 'inactive',
   ) {
     return this.ordersService.manuallyUpdateGuaranteeStatus(
       orderId,
-      guaranteeIndex,
+      guaranteeId,
       newStatus,
     );
   }
@@ -81,4 +84,15 @@ export class OrdersController {
   ) {
     return this.ordersService.addGuaranteeToOrder(orderId, guaranteeData);
   }
+
+  @Role(userRoles.ADMIN)
+  @Patch(':orderId/guarantee/:guaranteeId/accept')
+  async acceptGuarantee(
+    @Param('orderId') orderId: string,
+    @Param('guaranteeId') guaranteeIndex: string,
+    @Body('accepted') accepted: boolean,
+  ) {
+    return this.ordersService.updateGuaranteeAcceptance(orderId, guaranteeIndex, accepted);
+  }
+
 }

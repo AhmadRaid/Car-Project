@@ -11,7 +11,7 @@ import { Reflector } from '@nestjs/core';
 import { I18nService } from 'nestjs-i18n'; // Import the translation service
 import { Model } from 'mongoose';
 import { Admin } from 'src/schemas/admins.schema';
-import { Roles } from '../enum/adminRole.enum';
+import { userRoles } from '../enum/userRoles.enum';
 
 @Injectable()
 export class JwtAuthAdminGuard extends AuthGuard('jwt') {
@@ -93,7 +93,7 @@ export class JwtAuthAdminGuard extends AuthGuard('jwt') {
     context: ExecutionContext,
     admin: Admin,
   ): Promise<void> {
-    const roles = this.reflector.get<Roles[]>(
+    const roles = this.reflector.get<userRoles[]>(
       'roles',
       context.getHandler(),
     );

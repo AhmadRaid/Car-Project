@@ -26,6 +26,8 @@ import { ForgetPasswordDto } from './dto/forgetPassword.dto';
 import { TokenService } from 'src/common/token/token.service';
 import { JwtOrDeviceRequest } from 'src/interfaces/JwtOrDeviceRequest';
 import { JwtOrDeviceAuthGuard } from 'src/common/guards/JwtOrDeviceAuthGuard';
+import { userRoles } from 'src/common/enum/userRoles.enum';
+import { Role } from 'src/common/decorators/roles.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -35,13 +37,11 @@ export class AuthController {
     private readonly jwtService: JwtService,
   ) {}
 
-
-
+  @Role(userRoles.ADMIN)
   @Post('signup')
   createUser(@Body() singUpAuthDto: SignUpAuthDto) {
     return this.authService.createUser(singUpAuthDto);
   }
-
 
   @Post('login')
   loginUser(@Body() loginAuthDto: LoginAuthDto, @Req() req: Request) {

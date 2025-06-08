@@ -110,13 +110,18 @@ export class OrdersService {
 
   async manuallyUpdateGuaranteeStatus(
     orderId: string,
-    guaranteeIndex: number,
+    guaranteeId: string,
     newStatus: 'active' | 'inactive',
   ): Promise<OrdersDocument> {
     try {
       // Validate orderId
       if (!Types.ObjectId.isValid(orderId)) {
         throw new BadRequestException('Invalid order ID');
+      }
+
+      // Validate guaranteeId
+      if (!Types.ObjectId.isValid(guaranteeId)) {
+        throw new BadRequestException('Invalid guarantee ID');
       }
 
       // Validate status
@@ -126,39 +131,30 @@ export class OrdersService {
         );
       }
 
-      const order = await this.ordersModel.findById(orderId);
-      if (!order) {
+      // Check if order exists (optional - the update will fail if not)
+      const orderExists = await this.ordersModel.exists({ _id: orderId });
+      if (!orderExists) {
         throw new NotFoundException('Order not found');
       }
 
-      const guarantees = order.guarantee as Array<any>; // Type assertion
-      if (!guarantees || guarantees.length === 0) {
-        throw new BadRequestException('This order has no guarantees');
-      }
-
-
-      // Validate guarantee index
-      if (
-        !Number.isInteger(guaranteeIndex) ||
-        guaranteeIndex < 0 ||
-        guaranteeIndex >= order.guarantee.length
-      ) {
-        throw new BadRequestException('Invalid guarantee index');
-      }
-
-      // Update status for the specific guarantee
-      const updatedOrder = await this.ordersModel.findByIdAndUpdate(
-        orderId,
+      // Atomic update using the guarantee _id
+      const updatedOrder = await this.ordersModel.findOneAndUpdate(
+        {
+          _id: orderId,
+          'guarantee._id': guaranteeId,
+        },
         {
           $set: {
-            [`guarantee.${guaranteeIndex}.status`]: newStatus,
+            'guarantee.$.status': newStatus,
           },
         },
-        { new: true },
+        { new: true, runValidators: true },
       );
 
       if (!updatedOrder) {
-        throw new NotFoundException('Order not found after update');
+        throw new NotFoundException(
+          'Order not found or guarantee with specified ID does not exist',
+        );
       }
 
       return updatedOrder;
@@ -178,7 +174,7 @@ export class OrdersService {
     guaranteeData: AddGuaranteeDto,
   ): Promise<Orders> {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Compare dates without time component
+    today.setHours(0, 0, 0, 0);
 
     // Validate the dates
     if (guaranteeData.endDate <= guaranteeData.startDate) {
@@ -195,7 +191,6 @@ export class OrdersService {
       throw new BadRequestException('End date must be in the future');
     }
 
-    // Validate the order exists and isn't deleted
     const order = await this.ordersModel.findOne({
       _id: orderId,
       isDeleted: false,
@@ -204,21 +199,54 @@ export class OrdersService {
       throw new BadRequestException('Order not found or has been deleted');
     }
 
-    // Prepare the guarantee object
     const newGuarantee = {
       ...guaranteeData,
-      status: 'active', // Since we validated dates are in future
+      status: 'active',
     };
 
-    // Update the order with the new guarantee
     const updatedOrder = await this.ordersModel.findByIdAndUpdate(
       orderId,
       {
-        $push: { guarantee: newGuarantee }, // Use $push to add to array
+        $push: { guarantee: newGuarantee },
       },
-      { new: true }, // Return the updated document
+      { new: true },
     );
 
     return updatedOrder;
+  }
+
+  async updateGuaranteeAcceptance(
+    orderId: string,
+    guaranteeId: string,
+    accepted: boolean,
+  ) {
+    if (!Types.ObjectId.isValid(orderId)) {
+      throw new BadRequestException('Invalid Order ID');
+    }
+    if (!Types.ObjectId.isValid(guaranteeId)) {
+      throw new BadRequestException('Invalid Guarantee ID');
+    }
+
+    const result = await this.ordersModel.findOneAndUpdate(
+      {
+        _id: orderId,
+        'guarantee._id': guaranteeId,
+      },
+      {
+        $set: {
+          'guarantee.$.accepted': accepted,
+          'guarantee.$.status': accepted ? 'active' : 'inactive',
+        },
+      },
+      { new: true, runValidators: true },
+    );
+
+    if (!result) {
+      throw new NotFoundException(
+        'Order or guarantee not found. Either the order does not exist or the guarantee ID is incorrect.',
+      );
+    }
+
+    return result;
   }
 }

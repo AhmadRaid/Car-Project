@@ -20,6 +20,7 @@ export class Orders {
   @Prop({
     type: [
       {
+        _id: { type: Types.ObjectId, auto: true },
         typeGuarantee: {
           type: String,
           required: true,
@@ -30,21 +31,21 @@ export class Orders {
         status: {
           type: String,
           enum: ['active', 'inactive'],
-          default: 'active',
+          default: 'inactive',
         },
-        coveredComponents: { type: [String] },
+        accepted: { type: Boolean, default: false },
       },
     ],
   })
   guarantee: [
     {
-      products: string;
+      _id: Types.ObjectId;
       typeGuarantee: string;
       startDate: Date;
       endDate: Date;
       terms?: string;
       status?: string;
-      coveredComponents?: string[];
+      accepted: boolean;
     },
   ];
 

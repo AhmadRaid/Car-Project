@@ -25,11 +25,6 @@ class IsAfterConstraint implements ValidatorConstraintInterface {
 
 export class AddGuaranteeDto {
   @IsString()
-  products: string;
-
-  @IsIn(['فلم حماية', 'عوازل حرارية'], {
-    message: 'typeGuarantee must be either "فلم حماية" or "عوازل حرارية"',
-  })
   typeGuarantee: string;
 
   @IsDate()
@@ -46,8 +41,4 @@ export class AddGuaranteeDto {
   @IsString()
   @IsOptional()
   terms?: string;
-
-  @IsArray()
-  @IsOptional()
-  coveredComponents?: string[];
 }
