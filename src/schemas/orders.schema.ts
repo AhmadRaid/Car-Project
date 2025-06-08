@@ -20,11 +20,9 @@ export class Orders {
   @Prop({
     type: [
       {
-        products: { type: String },
         typeGuarantee: {
           type: String,
           required: true,
-          enum: ['فلم حماية', 'عوازل حرارية'],
         },
         startDate: { type: Date },
         endDate: { type: Date },

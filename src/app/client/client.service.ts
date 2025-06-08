@@ -25,8 +25,6 @@ export class ClientService {
         phone: createClientDto.phone,
         fullName: createClientDto.fullName,
       });
-      console.log('55555555555555555555',createClientDto.phone,createClientDto.fullName);
-      
 
       let clientId;
       let client;
@@ -217,20 +215,27 @@ export class ClientService {
       const totalResult = await this.clientModel
         .aggregate(countPipeline)
         .exec();
-      const total = totalResult[0]?.total || 0;
+      const totalClients = totalResult[0]?.total || 0;
 
       // Add pagination
-      const results = await this.clientModel
+      const clients = await this.clientModel
         .aggregate([...pipeline, { $skip: offset }, { $limit: limit }])
         .exec();
 
+      const currentPage = Math.floor(offset / limit) + 1 || 0;
+      const totalPages = Math.ceil(totalClients / limit) || 0;
+      const nextPage = currentPage < totalPages ? currentPage + 1 : 0;
+
       return {
-        clients: results,
         pagination: {
-          total,
-          limit,
-          offset,
+          totalClients,
+          currentPage,
+          totalPages,
+          nextPage,
+          limit: limit || 10,
+          offset: offset || 0,
         },
+        clients,
       };
     } catch (error) {
       if (error instanceof BadRequestException) {
