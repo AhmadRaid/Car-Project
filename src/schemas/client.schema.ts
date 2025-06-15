@@ -8,8 +8,14 @@ export type ClientDocument = Client & Document;
   timestamps: true,
 })
 export class Client {
-  @Prop({ type: String,required:true })
-  fullName: string;
+  @Prop({ type: String, required: true })
+  firstName: string;
+
+  @Prop({ type: String, required: true })
+  middleName: string;
+
+  @Prop({ type: String, required: true })
+  lastName: string;
 
   @Prop({ type: String })
   email: string;
@@ -17,7 +23,7 @@ export class Client {
   @Prop({ type: String, enum: ClientType })
   clientType: ClientType;
 
-  @Prop({ type: String,required:true })
+  @Prop({ type: String, required: true })
   phone: string;
 
   @Prop({ type: [Types.ObjectId], ref: 'Order', default: [] })
@@ -25,6 +31,13 @@ export class Client {
 
   @Prop({ type: String })
   company: string;
+
+  @Prop({
+    type: String,
+    enum: ['عملاء فرع ابحر', 'عملاء فرع المدينة', 'اخرى'],
+    required: true,
+  })
+  branch: string;
 
   @Prop({ type: String })
   address: string;

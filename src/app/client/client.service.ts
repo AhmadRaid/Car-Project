@@ -7,9 +7,9 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { PaginationDto } from 'src/common/pagination-dto/pagination.dto';
-import { uploadStorageFile } from 'src/config/firebase.config';
 import { Client, ClientDocument } from 'src/schemas/client.schema';
 import { Orders, OrdersDocument } from 'src/schemas/orders.schema';
+import { CreateClientDto } from './dto/create-client.dto';
 
 @Injectable()
 export class ClientService {
@@ -23,7 +23,6 @@ export class ClientService {
       // Check if client already exists
       const existingClient = await this.clientModel.findOne({
         phone: createClientDto.phone,
-        fullName: createClientDto.fullName,
       });
 
       let clientId;
@@ -40,9 +39,9 @@ export class ClientService {
 
       const createdOrder = await this.ordersModel.create({
         clientId: new Types.ObjectId(clientId),
+        carType: createClientDto.carType,
         carModel: createClientDto.carModel,
         carColor: createClientDto.carColor,
-        service: createClientDto.service,
         guarantee: [
           {
             typeGuarantee: createClientDto.guarantee.typeGuarantee,
@@ -126,7 +125,7 @@ export class ClientService {
         throw new NotFoundException('Client not found');
       }
 
-      return result[0]
+      return result[0];
     } catch (error) {
       if (
         error instanceof NotFoundException ||
@@ -138,9 +137,15 @@ export class ClientService {
     }
   }
 
-  async getClients(paginationDto: PaginationDto) {
+  async getClients(
+    branchTerm: 'عملاء فرع ابحر' | 'عملاء فرع المدينة' | 'اخرى',
+    searchTerm: string,
+    paginationDto: PaginationDto,
+  ) {
+    console.log('5555555555555555555555555555555555',branchTerm);
+    
     try {
-      const { limit = 10, offset = 0, searchTerm } = paginationDto;
+      const { limit = 10, offset = 0 } = paginationDto;
 
       // Validate pagination parameters
       if (limit < 1 || limit > 100) {
@@ -200,6 +205,16 @@ export class ClientService {
               { fullName: { $regex: searchTerm, $options: 'i' } },
               { phone: { $regex: searchTerm, $options: 'i' } },
             ],
+          },
+        });
+      }
+
+      if (branchTerm) {
+        pipeline.unshift({
+          $match: {
+            branch: {
+              $regex: new RegExp(`^${branchTerm}$`, 'i'),
+            },
           },
         });
       }

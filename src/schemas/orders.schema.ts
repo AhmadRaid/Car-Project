@@ -9,13 +9,16 @@ export class Orders {
   clientId: Types.ObjectId;
 
   @Prop({ required: true, type: String })
+  carType: string;
+
+  @Prop({ required: true, type: String })
   carModel: string;
 
   @Prop({ required: true, type: String })
   carColor: string;
 
-  @Prop({ required: true, type: String })
-  service: string;
+  // @Prop({ required: true, type: String })
+  // service: string;
 
   @Prop({
     type: [
@@ -24,6 +27,7 @@ export class Orders {
         typeGuarantee: {
           type: String,
           required: true,
+          enum: ['2 سنوات', '3 سنوات', '5 سنوات', '8 سنوات', '10 سنوات'], // Added enum here
         },
         startDate: { type: Date },
         endDate: { type: Date },

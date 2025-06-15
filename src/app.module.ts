@@ -11,7 +11,6 @@ import {
 } from 'nestjs-i18n';
 import { ResponseModel } from './common/classes/response.model';
 
-import { firebaseAdminInit } from './config/firebase.config';
 
 import { AppImports } from './config/app-imports.config';
 import { APP_GUARD } from '@nestjs/core';
@@ -19,6 +18,8 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { ClientModule } from './app/client/client.module';
 import { OrdersModule } from './app/orders/orders.module';
 import { ServiceModule } from './app/service/service.module';
+import { ReportsModule } from './app/reports/reports.module';
+import { ProductsModule } from './app/products/products.module';
 
 @Module({
   imports: AppImports,

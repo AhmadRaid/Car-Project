@@ -38,15 +38,15 @@ export class UserController {
     return this.userService.getProfileData(req.user._id);
   }
 
-  @UseInterceptors(FileInterceptor('image', generateUploadConfig('users')))
-  @Patch('profile')
-  async updateProfileData(
-    @Req() req: AuthRequest,
-    @UploadedFile() image: Express.Multer.File,
-    @Body() updateData: UpdateProfileDto,
-  ) {
-    return this.userService.updateProfileData(req.user._id, image, updateData);
-  }
+  // @UseInterceptors(FileInterceptor('image', generateUploadConfig('users')))
+  // @Patch('profile')
+  // async updateProfileData(
+  //   @Req() req: AuthRequest,
+  //   @UploadedFile() image: Express.Multer.File,
+  //   @Body() updateData: UpdateProfileDto,
+  // ) {
+  //   return this.userService.updateProfileData(req.user._id, image, updateData);
+  // }
 
 
 }

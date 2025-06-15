@@ -50,6 +50,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       throw new UnauthorizedException(this.i18n.t('auth.errors.tokenNotFound'));
     }
 
+    console.log('2222222222222222',token);
+    
+
     return token;
   }
 
@@ -71,7 +74,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   }
 
   private async findUserById(userId: string): Promise<User> {
-    const user = await this.userModel.findOne({ _id: userId, role: 'user' });
+    const user = await this.userModel.findOne({ _id: userId });
     if (!user) {
       throw new UnauthorizedException(this.i18n.t('auth.errors.userNotFound'));
     }

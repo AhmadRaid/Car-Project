@@ -12,7 +12,6 @@ import {
 import { AppService } from './app.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { generateUploadConfig } from './config/upload.file.config';
-import { uploadStorageFile } from './config/firebase.config';
 import { I18n, I18nContext } from 'nestjs-i18n';
 import { JwtOrDeviceAuthGuard } from './common/guards/JwtOrDeviceAuthGuard';
 import { JwtOrDeviceRequest } from './interfaces/JwtOrDeviceRequest';

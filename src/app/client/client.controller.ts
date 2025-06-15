@@ -36,41 +36,41 @@ export class ClientController {
     }
   }
 
-
-
   @Get(':clientId')
   async getClientWithOrders(@Param('clientId') clientId: string) {
     return this.clientService.getClientWithOrders(clientId);
   }
 
+  @Get()
+  async getClients(
+    @Query('search') searchTerm?: string,
+    @Query('branch') branchTerm?: 'عملاء فرع ابحر' | 'عملاء فرع المدينة' | 'اخرى',
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset?: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit?: number,
+  ) {
+    try {
+      if (limit < 1 || limit > 100) {
+        throw new BadRequestException('Limit must be between 1 and 100');
+      }
+      if (offset < 0) {
+        throw new BadRequestException('Offset must be positive');
+      }
 
-@Get()
-async getClients(
-  @Query('search') searchTerm?: string,
-  @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset?: number,
-  @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit?: number,
-) {
-  try {
-    if (limit < 1 || limit > 100) {
-      throw new BadRequestException('Limit must be between 1 and 100');
-    }
-    if (offset < 0) {
-      throw new BadRequestException('Offset must be positive');
-    }
+      const paginationDto: PaginationDto = {
+        offset,
+        limit,
+      };
 
-    const paginationDto: PaginationDto = {
-      searchTerm,
-      offset,
-      limit,
-    };
-
-    return await this.clientService.getClients(paginationDto);
-  } catch (error) {
-    if (error instanceof BadRequestException) {
-      throw error;
+      return await this.clientService.getClients(
+        branchTerm,
+        searchTerm,
+        paginationDto,
+      );
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to process client request');
     }
-    throw new BadRequestException('Failed to process client request');
   }
-}
-
 }
