@@ -41,6 +41,7 @@ export class Orders {
         startDate: { type: Date },
         endDate: { type: Date },
         terms: { type: String },
+        notes: { type: String },
         status: {
           type: String,
           enum: ['active', 'inactive'],
@@ -57,6 +58,7 @@ export class Orders {
       startDate: Date;
       endDate: Date;
       terms?: string;
+      notes?: string;
       status?: string;
       accepted: boolean;
     },

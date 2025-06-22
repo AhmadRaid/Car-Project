@@ -51,7 +51,7 @@ export class ClientService {
             startDate: createClientDto.guarantee.startDate,
             endDate: createClientDto.guarantee.endDate,
             terms: createClientDto.guarantee.terms,
-            coveredComponents: createClientDto.guarantee.coveredComponents,
+            notes: createClientDto.guarantee.notes,
           },
         ],
       });

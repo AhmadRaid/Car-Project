@@ -39,8 +39,6 @@ export class Client {
   })
   branch: string;
 
-
-
   @Prop({ type: String })
   address: string;
 
