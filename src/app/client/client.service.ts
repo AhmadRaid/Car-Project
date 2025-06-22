@@ -42,6 +42,9 @@ export class ClientService {
         carType: createClientDto.carType,
         carModel: createClientDto.carModel,
         carColor: createClientDto.carColor,
+        carPlateNumber: createClientDto.carPlateNumber,
+        carManufacturer: createClientDto.carManufacturer,
+        carSize: createClientDto.carManufacturer,
         guarantee: [
           {
             typeGuarantee: createClientDto.guarantee.typeGuarantee,
@@ -142,7 +145,6 @@ export class ClientService {
     searchTerm: string,
     paginationDto: PaginationDto,
   ) {
-    console.log('5555555555555555555555555555555555',branchTerm);
     
     try {
       const { limit = 10, offset = 0 } = paginationDto;

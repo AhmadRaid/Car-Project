@@ -17,6 +17,15 @@ export class Orders {
   @Prop({ required: true, type: String })
   carColor: string;
 
+  @Prop({ type: String, required: true })
+  carPlateNumber: string;
+
+  @Prop({ type: String, required: true })
+  carManufacturer: string;
+  
+  @Prop({ type: String, required: true })
+  carSize: string;
+
   // @Prop({ required: true, type: String })
   // service: string;
 
