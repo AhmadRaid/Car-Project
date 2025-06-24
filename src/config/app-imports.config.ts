@@ -13,6 +13,7 @@ import { OrdersModule } from 'src/app/orders/orders.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ServiceModule } from 'src/app/service/service.module';
 import { ReportsModule } from 'src/app/reports/reports.module';
+import { TypeCarsModule } from 'src/app/type-cars/type-cars.module';
 
 // import { GoogleMapModule } from 'src/app/google-map/google-map.module';
 
@@ -35,7 +36,8 @@ export const AppImports = [
   UserModule,
   ClientModule,
   ServiceModule,
-  ReportsModule
+  ReportsModule,
+  TypeCarsModule
  // OrdersModule
  //PdfController
 ];

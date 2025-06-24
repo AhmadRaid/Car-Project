@@ -20,6 +20,7 @@ import { OrdersModule } from './app/orders/orders.module';
 import { ServiceModule } from './app/service/service.module';
 import { ReportsModule } from './app/reports/reports.module';
 import { ProductsModule } from './app/products/products.module';
+import { TypeCarsModule } from './app/type-cars/type-cars.module';
 
 @Module({
   imports: AppImports,
