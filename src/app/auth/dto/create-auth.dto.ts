@@ -2,6 +2,7 @@ import {
   IsBoolean,
   IsEmail,
   IsNotEmpty,
+  IsOptional,
   IsString,
   MinLength,
 } from 'class-validator';
@@ -12,9 +13,9 @@ export class SignUpAuthDto {
   @MinLength(6)
   readonly fullName: string;
 
-  @IsEmail()
+  @IsString()
   @IsNotEmpty()
-  readonly email: string;
+  readonly employeeId: string;
 
   @IsNotEmpty()
   @MinLength(6)
@@ -23,4 +24,12 @@ export class SignUpAuthDto {
   @IsString()
   @IsNotEmpty()
   readonly role: string;
+
+  @IsString()
+  @IsNotEmpty()
+  readonly branch: string;
+
+  @IsOptional()
+  @IsEmail()
+  readonly email: string;
 }

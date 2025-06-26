@@ -40,7 +40,7 @@ export class AuthController {
   @Role(userRoles.ADMIN)
   @Post('signup')
   createUser(@Body() singUpAuthDto: SignUpAuthDto) {
-    return this.authService.createUser(singUpAuthDto);
+    return this.authService.createEmployee(singUpAuthDto);
   }
 
   @Post('login')

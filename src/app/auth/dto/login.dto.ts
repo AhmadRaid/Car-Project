@@ -2,12 +2,14 @@ import { IsBoolean, IsEmail, IsNotEmpty, IsString, MinLength } from 'class-valid
 
 export class LoginAuthDto {
 
-
-  @IsEmail()
+  @IsString()
   @IsNotEmpty()
-  readonly email: string;
+  readonly employeeId: string;
 
   @IsNotEmpty()
   @MinLength(6)
   readonly password: string;
+  
+  @IsNotEmpty()
+  readonly branch: string;
 }

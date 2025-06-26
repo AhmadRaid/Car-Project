@@ -35,6 +35,7 @@
   "SUCCESS": "Success",
   "FAILED": "Failed",
   "EMAIL_EXIST": "This Email is used by another user",
+  "EMPLOYEEID_EXIST": "This Employee Id is used by another Employee",
   "USER_NAME_EXIST": "This user name is used by another user",
   "isObject": "This field must be an object",
   "isEnum": "This field must be one of the following values: {values}",

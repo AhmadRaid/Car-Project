@@ -10,11 +10,13 @@ export type UserDocument = User & Document & { _id: Types.ObjectId };
   timestamps: true,
 })
 export class User {
-
   @Prop({ required: true, type: String })
   fullName: string;
 
-  @Prop({ required: true, type: String, unique: true })
+  @Prop({ required: true, type: String })
+  employeeId: string;
+
+  @Prop({  type: String })
   email: string;
 
   @Prop({ required: true, type: String })
@@ -26,8 +28,11 @@ export class User {
   @Prop({ type: String })
   phoneNumber: string;
 
-  @Prop({ required: true, type: String, enum:userRoles })
+  @Prop({ required: true, type: String, enum: userRoles })
   role: string;
+
+  @Prop({ required: true, type: String })
+  branch: string;
 
   @Prop({ type: String, default: 'active', enum: userStatus })
   status: string;

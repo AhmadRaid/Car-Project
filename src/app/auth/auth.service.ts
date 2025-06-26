@@ -67,33 +67,26 @@ export class AuthService {
   //   };
   // }
 
-  async createUser(loginAuthDto: SignUpAuthDto) {
-    const { fullName, email, password, role } = loginAuthDto;
+  async createEmployee(createEmployee: SignUpAuthDto) {
+    const { fullName, employeeId, password, branch, role } = createEmployee;
 
-    const existingEmailUser = await this.userModel.findOne({
-      email,
+    const existingEmployeeIdUser = await this.userModel.findOne({
+      employeeId,
       isDeleted: false,
     });
 
-    if (existingEmailUser) {
-      throw new BadRequestException('EMAIL_EXIST');
+    if (existingEmployeeIdUser) {
+      throw new BadRequestException('EMPLOYEEID_EXIST');
     }
 
-    const existingUserNameUser = await this.userModel.findOne({
-      fullName,
-      isDeleted: false,
-    });
-
-    if (existingUserNameUser) {
-      throw new BadRequestException('USER_NAME_EXIST');
-    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new this.userModel({
-      email,
+      employeeId,
       password: hashedPassword,
       fullName,
+      branch,
       role,
     });
 
@@ -105,10 +98,10 @@ export class AuthService {
   }
 
   async login(loginAuthDto: LoginAuthDto, deviceId: string) {
-    const { email, password } = loginAuthDto;
+    const { employeeId, branch, password } = loginAuthDto;
 
     const user = await this.userModel.findOne({
-      $or: [{ email: email }, { userName: email }],
+      employeeId: employeeId,
       isDeleted: false,
     });
 
@@ -122,7 +115,12 @@ export class AuthService {
       throw new UnauthorizedException('auth.errors.INVALIDE_INCREDENTIAL');
     }
 
-    const payload = { email: user.email, _id: user._id, role: user.role };
+    const payload = {
+      employeeId: user.employeeId,
+      _id: user._id,
+      role: user.role,
+      branch: user.branch,
+    };
 
     const { accessToken, refreshToken } = await this.generateTokens(payload);
 
@@ -163,18 +161,15 @@ export class AuthService {
 
       if (!user) throw new UnauthorizedException('User not found');
 
-      console.log('dasdasdasdasdasdasd');
 
       // Check if the refresh token is valid
       const isValid = await this.tokenService.isRefreshTokenValid(
         decoded._id,
         refreshToken,
       );
-      console.log('333333333');
 
       if (!isValid) throw new UnauthorizedException('Invalid refresh token');
 
-      console.log('4444444');
 
       // Generate new tokens
       return this.generateTokens(user);
