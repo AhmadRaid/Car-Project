@@ -31,6 +31,8 @@ export class ClientController {
       if (error instanceof ConflictException) {
         throw new ConflictException('Client with this phone already exists');
       }
+      console.log('errrrrrrrror',error);
+      
 
       throw new BadRequestException('Failed to create client');
     }
