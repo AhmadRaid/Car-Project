@@ -7,57 +7,84 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { PaginationDto } from 'src/common/pagination-dto/pagination.dto';
-import { Client, ClientDocument } from 'src/schemas/client.schema';
+import { ClientDocument } from 'src/schemas/client.schema';
 import { Orders, OrdersDocument } from 'src/schemas/orders.schema';
 import { CreateClientDto } from './dto/create-client.dto';
+
+import { ClientType } from 'src/common/enum/clientType.enum';
+
+export interface Client {
+  _id: Types.ObjectId;
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  email?: string;
+  clientType?: ClientType;
+  phone: string;
+  orderIds: Types.ObjectId[];
+  company?: string;
+  branch: 'عملاء فرع ابحر' | 'عملاء فرع المدينة' | 'اخرى';
+  address?: string;
+  isDeleted: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
 @Injectable()
 export class ClientService {
   constructor(
-    @InjectModel(Client.name) private clientModel: Model<ClientDocument>,
+    @InjectModel('Client') private clientModel: Model<ClientDocument>,
     @InjectModel(Orders.name) private ordersModel: Model<OrdersDocument>,
   ) {}
 
-  async createClient(createClientDto: any): Promise<Client> {
+  async createClient(createClientDto: any): Promise<ClientDocument> {
     try {
-      // Check if client already exists
       const existingClient = await this.clientModel.findOne({
         phone: createClientDto.phone,
       });
 
-      let clientId;
-      let client;
+      let client: ClientDocument;
 
       if (!existingClient) {
         client = await this.clientModel.create(createClientDto);
-
-        clientId = client._id;
       } else {
-        clientId = existingClient._id;
         client = existingClient;
       }
 
+      if (
+        !createClientDto.carType &&
+        !createClientDto.carModel &&
+        !createClientDto.carColor &&
+        !createClientDto.carPlateNumber &&
+        !createClientDto.guarantee
+      ) {
+        console.log('✅ تم تسجيل العميل بدون Order');
+        return client;
+      }
+
       const createdOrder = await this.ordersModel.create({
-        clientId: new Types.ObjectId(clientId),
+        clientId: client._id,
         carType: createClientDto.carType,
         carModel: createClientDto.carModel,
         carColor: createClientDto.carColor,
         carPlateNumber: createClientDto.carPlateNumber,
         carManufacturer: createClientDto.carManufacturer,
-        carSize: createClientDto.carManufacturer,
-        guarantee: [
-          {
-            typeGuarantee: createClientDto.guarantee.typeGuarantee,
-            startDate: createClientDto.guarantee.startDate,
-            endDate: createClientDto.guarantee.endDate,
-            terms: createClientDto.guarantee.terms,
-            notes: createClientDto.guarantee.notes,
-          },
-        ],
+        carSize: createClientDto.carSize,
+        guarantee: createClientDto.guarantee
+          ? [
+              {
+                typeGuarantee: createClientDto.guarantee.typeGuarantee,
+                startDate: createClientDto.guarantee.startDate,
+                endDate: createClientDto.guarantee.endDate,
+                terms: createClientDto.guarantee.terms,
+                notes: createClientDto.guarantee.notes,
+              },
+            ]
+          : [],
       });
 
       await this.clientModel.findByIdAndUpdate(
-        clientId,
+        client._id,
         { $push: { orderIds: createdOrder._id } },
         { new: true },
       );
@@ -67,7 +94,7 @@ export class ClientService {
       if (error instanceof ConflictException) {
         throw error;
       }
-      throw new BadRequestException('Failed to create client');
+      throw new BadRequestException('فشل في إنشاء العميل');
     }
   }
 
@@ -145,7 +172,6 @@ export class ClientService {
     searchTerm: string,
     paginationDto: PaginationDto,
   ) {
-    
     try {
       const { limit = 10, offset = 0 } = paginationDto;
 
