@@ -46,19 +46,22 @@ async function bootstrap() {
     credentials: true,
   });
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      exceptionFactory: (errors) => {
-        return new BadRequestException({
-          message: 'Validation failed',
-          errors,
-        });
-      },
-    }),
-  );
+
+app.useGlobalPipes(
+  new ValidationPipe({
+    transform: true,
+    exceptionFactory: (errors) => {
+      return new BadRequestException({
+        message: 'Validation failed',
+        errors,
+      });
+    },
+    stopAtFirstError: true,
+  }),
+);
+
+
+
 
   app.useGlobalInterceptors(new TransformAPIInterceptor(new LoggerService()));
 

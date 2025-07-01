@@ -185,5 +185,11 @@
   "FORBIDDEN": "Forbidden",
   "TOO_MANY_REQUESTS": "You have exceeded the maximum number of allowed requests. Try again later.",
   "EMAIL_ALREADY_EXIST": "The email address is already registered.",
-  "PHONE_NUMBER_ALREADY_EXIST": "The phone number is already registered."
+  "PHONE_NUMBER_ALREADY_EXIST": "The phone number is already registered.",
+  "length": "{{property}} يجب أن يكون طوله {{constraints.0}} أحرف",
+  "isArray": "{{property}} يجب أن يكون مصفوفة",
+  "arrayMinSize": "{{property}} يجب أن يحتوي على الأقل على {{constraints.0}} عناصر",
+  "arrayMaxSize": "{{property}} يجب ألا يحتوي على أكثر من {{constraints.0}} عناصر",
+  "Validation failed": "فشل التحقق من البيانات",
+  "UNAUTHORIZED": "غير مصرح لك بالوصول"
 }

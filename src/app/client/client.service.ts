@@ -1,3 +1,4 @@
+import { ClientDocument } from './../../schemas/client.schema';
 import {
   Injectable,
   NotFoundException,
@@ -7,61 +8,61 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { PaginationDto } from 'src/common/pagination-dto/pagination.dto';
-import { ClientDocument } from 'src/schemas/client.schema';
+import { Client } from 'src/schemas/client.schema';
 import { Orders, OrdersDocument } from 'src/schemas/orders.schema';
-import { CreateClientDto } from './dto/create-client.dto';
-
-import { ClientType } from 'src/common/enum/clientType.enum';
-
-export interface Client {
-  _id: Types.ObjectId;
-  firstName: string;
-  middleName: string;
-  lastName: string;
-  email?: string;
-  clientType?: ClientType;
-  phone: string;
-  orderIds: Types.ObjectId[];
-  company?: string;
-  branch: 'عملاء فرع ابحر' | 'عملاء فرع المدينة' | 'اخرى';
-  address?: string;
-  isDeleted: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+import { createClientAndOrderDto, ServiceDto } from './dto/create-client.dto';
 
 @Injectable()
 export class ClientService {
   constructor(
-    @InjectModel('Client') private clientModel: Model<ClientDocument>,
+    @InjectModel(Client.name) private clientModel: Model<ClientDocument>,
     @InjectModel(Orders.name) private ordersModel: Model<OrdersDocument>,
   ) {}
 
-  async createClient(createClientDto: any): Promise<ClientDocument> {
+  async createClient(
+    createClientDto: createClientAndOrderDto,
+  ): Promise<{ client: ClientDocument; order: OrdersDocument }> {
     try {
-      const existingClient = await this.clientModel.findOne({
+      let client = await this.clientModel.findOne({
         phone: createClientDto.phone,
       });
 
-      let client: ClientDocument;
-
-      if (!existingClient) {
-        client = await this.clientModel.create(createClientDto);
-      } else {
-        client = existingClient;
+      if (!client) {
+        client = await this.clientModel.create({
+          firstName: createClientDto.firstName,
+          middleName: createClientDto.middleName,
+          lastName: createClientDto.lastName,
+          email: createClientDto.email,
+          phone: createClientDto.phone,
+          clientType: createClientDto.clientType,
+          branch: createClientDto.branch,
+        });
       }
 
-      if (
-        !createClientDto.carType &&
-        !createClientDto.carModel &&
-        !createClientDto.carColor &&
-        !createClientDto.carPlateNumber &&
-        !createClientDto.guarantee
-      ) {
-        console.log('✅ تم تسجيل العميل بدون Order');
-        return client;
-      }
+      // 2. تحضير الخدمات مع ضماناتها الإجبارية
+      const preparedServices = createClientDto.services.map((service) => {
+        const serviceData: any = {
+          serviceType: service.serviceType,
+          dealDetails: service.dealDetails || undefined,
+          servicePrice: service.servicePrice || undefined,
+          guarantee: {
+            typeGuarantee: service.guarantee.typeGuarantee,
+            startDate: new Date(service.guarantee.startDate),
+            endDate: new Date(service.guarantee.endDate),
+            terms: service.guarantee.terms || undefined,
+            notes: service.guarantee.notes || undefined,
+            status: 'inactive',
+            accepted: false,
+          },
+        };
 
+        // إضافة الحقول الخاصة بكل خدمة
+        this.addServiceSpecificFields(service, serviceData);
+
+        return serviceData;
+      });
+
+      // 3. إنشاء الطلب
       const createdOrder = await this.ordersModel.create({
         clientId: client._id,
         carType: createClientDto.carType,
@@ -70,31 +71,95 @@ export class ClientService {
         carPlateNumber: createClientDto.carPlateNumber,
         carManufacturer: createClientDto.carManufacturer,
         carSize: createClientDto.carSize,
-        guarantee: createClientDto.guarantee
-          ? [
-              {
-                typeGuarantee: createClientDto.guarantee.typeGuarantee,
-                startDate: createClientDto.guarantee.startDate,
-                endDate: createClientDto.guarantee.endDate,
-                terms: createClientDto.guarantee.terms,
-                notes: createClientDto.guarantee.notes,
-              },
-            ]
-          : [],
+        services: preparedServices,
       });
 
+      // 4. تحديث العميل
       await this.clientModel.findByIdAndUpdate(
         client._id,
         { $push: { orderIds: createdOrder._id } },
         { new: true },
       );
 
-      return client;
+      return {
+        client: client.toObject(),
+        order: createdOrder.toObject(),
+      };
     } catch (error) {
-      if (error instanceof ConflictException) {
-        throw error;
+      console.error('Error creating order:', error);
+
+      // Handle specific error types
+      if (error.code === 11000) {
+        throw new ConflictException(
+          'Client with this phone number already exists',
+        );
       }
-      throw new BadRequestException('فشل في إنشاء العميل');
+
+      if (error.name === 'ValidationError') {
+        // Handle Mongoose validation errors
+        const errorMessages = Object.values(error.errors).map(
+          (err: any) => err.message,
+        );
+        throw new BadRequestException(
+          `Validation failed: ${errorMessages.join(', ')}`,
+        );
+      }
+
+      if (error.name === 'CastError') {
+        // Handle invalid data type errors
+        throw new BadRequestException(
+          `Invalid data type for field: ${error.path}`,
+        );
+      }
+
+      if (error instanceof Error && error.message.includes('required')) {
+        // Handle missing required fields
+        throw new BadRequestException(error.message);
+      }
+
+      // For date validation errors
+      if (
+        error.message.includes('invalid date') ||
+        error.message.includes('date format')
+      ) {
+        throw new BadRequestException(
+          'Invalid date format. Please use YYYY-MM-DD format',
+        );
+      }
+
+      // General error as last resort
+      throw new BadRequestException(
+        `Failed to create order: ${error.message || 'Unknown error occurred'}`,
+      );
+    }
+  }
+
+  private addServiceSpecificFields(service: ServiceDto, serviceData: any) {
+    switch (service.serviceType) {
+      case 'protection':
+        if (service.protectionFinish)
+          serviceData.protectionFinish = service.protectionFinish;
+        if (service.protectionSize)
+          serviceData.protectionSize = service.protectionSize;
+        if (service.protectionCoverage)
+          serviceData.protectionCoverage = service.protectionCoverage;
+        break;
+      case 'insulator':
+        if (service.insulatorType)
+          serviceData.insulatorType = service.insulatorType;
+        if (service.insulatorCoverage)
+          serviceData.insulatorCoverage = service.insulatorCoverage;
+        break;
+      case 'polish':
+        if (service.polishType) serviceData.polishType = service.polishType;
+        if (service.polishSubType)
+          serviceData.polishSubType = service.polishSubType;
+        break;
+      case 'additions':
+        if (service.additionType)
+          serviceData.additionType = service.additionType;
+        if (service.washScope) serviceData.washScope = service.washScope;
+        break;
     }
   }
 
@@ -230,8 +295,27 @@ export class ClientService {
         pipeline.unshift({
           $match: {
             $or: [
-              { fullName: { $regex: searchTerm, $options: 'i' } },
+              { firstName: { $regex: searchTerm, $options: 'i' } },
+              { middleName: { $regex: searchTerm, $options: 'i' } },
+              { lastName: { $regex: searchTerm, $options: 'i' } },
               { phone: { $regex: searchTerm, $options: 'i' } },
+              {
+                $expr: {
+                  $regexMatch: {
+                    input: {
+                      $concat: [
+                        '$firstName',
+                        ' ',
+                        '$middleName',
+                        ' ',
+                        '$lastName',
+                      ],
+                    },
+                    regex: searchTerm,
+                    options: 'i',
+                  },
+                },
+              },
             ],
           },
         });
@@ -262,7 +346,6 @@ export class ClientService {
       const currentPage = Math.floor(offset / limit) + 1 || 0;
       const totalPages = Math.ceil(totalClients / limit) || 0;
       const nextPage = currentPage < totalPages ? currentPage + 1 : 0;
-
       return {
         pagination: {
           totalClients,

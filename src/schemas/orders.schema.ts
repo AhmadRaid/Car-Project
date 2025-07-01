@@ -22,38 +22,96 @@ export class Orders {
 
   @Prop({ type: String, required: true })
   carManufacturer: string;
-  
+
   @Prop({ type: String, required: true })
   carSize: string;
-
-  // @Prop({ required: true, type: String })
-  // service: string;
 
   @Prop({
     type: [
       {
         _id: { type: Types.ObjectId, auto: true },
-        typeGuarantee: {
+        serviceType: {
           type: String,
           required: true,
-          enum: ['2 سنوات', '3 سنوات', '5 سنوات', '8 سنوات', '10 سنوات'], // Added enum here
+          enum: ['polish', 'protection', 'insulator', 'additions'],
         },
-        startDate: { type: Date },
-        endDate: { type: Date },
-        terms: { type: String },
-        notes: { type: String },
-        status: {
+        dealDetails: { type: String },
+        protectionFinish: {
           type: String,
-          enum: ['active', 'inactive'],
-          default: 'inactive',
+          enum: ['glossy', 'matte', 'colored'],
         },
-        accepted: { type: Boolean, default: false },
+        protectionSize: { type: String, enum: ['10', '7.5'] },
+        protectionCoverage: {
+          type: String,
+          enum: ['full', 'half', 'quarter', 'edges', 'other'],
+        },
+        insulatorType: { type: String, enum: ['ceramic', 'carbon', 'crystal'] },
+        insulatorCoverage: {
+          type: String,
+          enum: ['full', 'half', 'piece', 'shield', 'external'],
+        },
+        polishType: {
+          type: String,
+          enum: ['external', 'internal', 'seats', 'piece', 'water_polish'],
+        },
+        polishSubType: { type: String, enum: ['1', '2', '3'] },
+        additionType: {
+          type: String,
+          enum: [
+            'detailed_wash',
+            'premium_wash',
+            'leather_pedals',
+            'blackout',
+            'nano_interior_decor',
+            'nano_interior_seats',
+          ],
+        },
+        washScope: {
+          type: String,
+          enum: ['full', 'external_only', 'internal_only', 'engine'],
+        },
+        servicePrice: { type: Number },
+        serviceDate: { type: Date },
+        guarantee: {
+          type: {
+            typeGuarantee: {
+              type: String,
+              required: true,
+              enum: ['2 سنوات', '3 سنوات', '5 سنوات', '8 سنوات', '10 سنوات'],
+            },
+            startDate: { type: Date, required: true },
+            endDate: { type: Date, required: true },
+            terms: { type: String },
+            notes: { type: String },
+            status: {
+              type: String,
+              enum: ['active', 'inactive'],
+              default: 'inactive',
+            },
+            accepted: { type: Boolean, default: false },
+          },
+          required: true,
+        },
       },
     ],
+    default: [],
   })
-  guarantee: [
-    {
-      _id: Types.ObjectId;
+  services: Array<{
+    _id: Types.ObjectId;
+    serviceType: string;
+    dealDetails?: string;
+    protectionFinish?: string;
+    protectionSize?: string;
+    protectionCoverage?: string;
+    insulatorType?: string;
+    insulatorCoverage?: string;
+    polishType?: string;
+    polishSubType?: string;
+    additionType?: string;
+    washScope?: string;
+    servicePrice?: number;
+    serviceDate?: Date;
+    guarantee: {
       typeGuarantee: string;
       startDate: Date;
       endDate: Date;
@@ -61,27 +119,11 @@ export class Orders {
       notes?: string;
       status?: string;
       accepted: boolean;
-    },
-  ];
+    };
+  }>;
 
   @Prop({ type: Boolean, default: false })
   isDeleted: boolean;
-
-  // Virtual for guarantee duration in days
-  @Prop({
-    virtual: true,
-    get: function () {
-      const diffTime = Math.abs(
-        this.guarantee.endDate.getTime() - this.guarantee.startDate.getTime(),
-      );
-      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    },
-  })
-  guaranteeDurationDays: number;
 }
 
 export const OrdersSchema = SchemaFactory.createForClass(Orders);
-
-// Ensure virtuals are included when converting to JSON
-OrdersSchema.set('toJSON', { virtuals: true });
-OrdersSchema.set('toObject', { virtuals: true });

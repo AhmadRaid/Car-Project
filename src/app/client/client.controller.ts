@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { ClientService } from './client.service';
 import { PaginationDto } from 'src/common/pagination-dto/pagination.dto';
+import { createClientAndOrderDto } from './dto/create-client.dto';
 
 @Controller('clients')
 //@UseGuards(JwtAuthGuard)
@@ -22,19 +23,57 @@ export class ClientController {
   constructor(private readonly clientService: ClientService) {}
 
   @Post()
-  async createClient(@Body() createClientDto: any) {
+  async createClient(@Body() createClientDto: createClientAndOrderDto) {
     try {
       return await this.clientService.createClient({
         ...createClientDto,
       });
     } catch (error) {
-      if (error instanceof ConflictException) {
-        throw new ConflictException('Client with this phone already exists');
-      }
-      console.log('errrrrrrrror',error);
-      
+      console.error('Error creating order:', error);
 
-      throw new BadRequestException('Failed to create client');
+      // Handle specific error types
+      if (error.code === 11000) {
+        throw new ConflictException(
+          'Client with this phone number already exists',
+        );
+      }
+
+      if (error.name === 'ValidationError') {
+        // Handle Mongoose validation errors
+        const errorMessages = Object.values(error.errors).map(
+          (err: any) => err.message,
+        );
+        throw new BadRequestException(
+          `Validation failed: ${errorMessages.join(', ')}`,
+        );
+      }
+
+      if (error.name === 'CastError') {
+        // Handle invalid data type errors
+        throw new BadRequestException(
+          `Invalid data type for field: ${error.path}`,
+        );
+      }
+
+      if (error instanceof Error && error.message.includes('required')) {
+        // Handle missing required fields
+        throw new BadRequestException(error.message);
+      }
+
+      // For date validation errors
+      if (
+        error.message.includes('invalid date') ||
+        error.message.includes('date format')
+      ) {
+        throw new BadRequestException(
+          'Invalid date format. Please use YYYY-MM-DD format',
+        );
+      }
+
+      // General error as last resort
+      throw new BadRequestException(
+        `Failed to create order: ${error.message || 'Unknown error occurred'}`,
+      );
     }
   }
 

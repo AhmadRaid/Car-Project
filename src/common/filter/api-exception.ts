@@ -4,15 +4,14 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { LoggerService } from '../../shared/logger/logger.service';
 import { ResponseModel } from '../classes/response.model';
 import { I18nService } from 'nestjs-i18n';
 import { ThrottlerException } from '@nestjs/throttler';
+import { ValidationError } from 'class-validator';
 
-/**
- * Exception handler, provides unified exception response data
- */
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
   constructor(
@@ -35,7 +34,6 @@ export class ApiExceptionFilter implements ExceptionFilter {
     };
 
     const lang = request.headers['accept-language']?.split(',')[0] || 'ar';
-
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
@@ -45,77 +43,80 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     let message =
       exception['message'] ||
-      exception['response']['message'] ||
-      exception['response']['error'] ||
+      exception['response']?.['message'] ||
+      exception['response']?.['error'] ||
       exception['error'] ||
       'BAD_REQUEST';
 
-
+    // ✨ خاص بـ Throttling
     if (exception instanceof ThrottlerException) {
-      message = await this.i18n.t('common.TOO_MANY_REQUESTS', { lang });
-    } else if (this.i18n) {
-      message = (await this.i18n.t(`common.${message}`, { lang })) as string;
+      message = await this.i18n.t('TOO_MANY_REQUESTS', { lang });
     }
 
-    let result = new ResponseModel(status, null, message, 'failed');
+    // ✅ فحص إذا الخطأ من التحقق Validation
+    else if (
+      exception instanceof BadRequestException &&
+      exception.getResponse()['message'] === 'Validation failed'
+    ) {
+      const validationResponse = exception.getResponse() as any;
+      const validationErrors: ValidationError[] = validationResponse.errors || [];
 
-    if (exception['response']?.['message'] === 'Validation failed') {
-      const validationErrors = exception['response']['errors'];
-      if (validationErrors && Array.isArray(validationErrors)) {
-        const firstError = validationErrors[0];
-        const firstConstraintKey = Object.keys(firstError.constraints)[0];
-        const firstConstraintMessage =
-          firstError.constraints[firstConstraintKey];
+      const validationMessage =
+        this.findFirstConstraintError(validationErrors) || 'فشل التحقق من البيانات';
 
-        message = firstConstraintMessage;
-
-        result = new ResponseModel(status, null, message, 'failed');
-      }
+      message = validationMessage;
     }
 
+    // ✅ ترجمة الرسائل المعروفة
+    else if (this.i18n) {
+      message = (await this.i18n.t(`common.${message}`, { lang })) || message;
+    }
+
+    // 💥 أخطاء الخادم
     if (status >= 500) {
       this.logger.error(
-        `request: ${JSON.stringify(safeRequest)} response: ${JSON.stringify(
-          exception,
-        )} message: ${message}`,
+        `Request: ${JSON.stringify(safeRequest)}\nException: ${JSON.stringify(exception)}\nMessage: ${message}`,
         ApiExceptionFilter.name,
       );
-
       message = await this.i18n.t('INTERNAL_SERVER_ERROR', { lang });
-    } else if (status >= 400) {
+    }
+
+    // ⚠️ أخطاء المستخدم أو الطلب
+    else if (status >= 400) {
       this.logger.warn(
-        `Request: ${JSON.stringify(safeRequest)} Response: ${JSON.stringify(
-          exception,
-        )} Message: ${message}`,
+        `Request: ${JSON.stringify(safeRequest)}\nException: ${JSON.stringify(exception)}\nMessage: ${message}`,
       );
 
-      if (exception['response']?.['message'] === 'Bad Request') {
+      const originalMessage = exception['response']?.['message'];
+      if (originalMessage === 'Bad Request') {
         message = await this.i18n.t('BAD_REQUEST', { lang });
-      } else if (
-        exception['response']?.['message'] &&
-        typeof exception['response']['message'] === 'string' &&
-        exception['response']['message'].includes('Unauthorized')
-      ) {
+      } else if (typeof originalMessage === 'string' && originalMessage.includes('Unauthorized')) {
         message = await this.i18n.t('UNAUTHORIZED', { lang });
-      } else if (exception['response']?.['message'] === 'Not Found') {
+      } else if (originalMessage === 'Not Found') {
         message = await this.i18n.t('NOT_FOUND', { lang });
-      } else if (exception['response']?.['message'] === 'Forbidden') {
+      } else if (originalMessage === 'Forbidden') {
         message = await this.i18n.t('FORBIDDEN', { lang });
       }
     }
 
-    if (status >= 400) {
-      // Send error response
-      response.status(status).send(result);
-    } else {
-      // Send successful response (without error)
-      const successfulResponse = new ResponseModel(
-        status,
-        {},
-        message,
-        'success',
-      );
-      response.status(status).send(successfulResponse);
+    const result = new ResponseModel(status, null, message, 'failed');
+    response.status(status).send(result);
+  }
+
+  // ✅ دالة Recursive لإيجاد أول خطأ تحقق فعلي
+  private findFirstConstraintError(errors: ValidationError[]): string | null {
+    for (const error of errors) {
+      if (error.constraints) {
+        return Object.values(error.constraints)[0];
+      }
+
+      if (error.children?.length) {
+        const messageInChildren = this.findFirstConstraintError(error.children);
+        if (messageInChildren) {
+          return messageInChildren;
+        }
+      }
     }
+    return null;
   }
 }
