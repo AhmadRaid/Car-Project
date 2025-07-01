@@ -85,10 +85,15 @@ export class ClientController {
   @Get()
   async getClients(
     @Query('search') searchTerm?: string,
-    @Query('branch') branchTerm?: 'عملاء فرع ابحر' | 'عملاء فرع المدينة' | 'اخرى',
+    @Query('branch')
+    branchTerm?: 'عملاء فرع ابحر' | 'عملاء فرع المدينة' | 'اخرى',
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset?: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit?: number,
+    @Query('sort') sortOrder?: 'asc' | 'desc', // إضافة معامل الترتيب
+    @Query('sortBy') sortBy?: string, // إضافة معامل الحقل الذي نريد الترتيب حسبه
   ) {
+    console.log('5888888888888888888888888888888888888888');
+    
     try {
       if (limit < 1 || limit > 100) {
         throw new BadRequestException('Limit must be between 1 and 100');
@@ -100,6 +105,10 @@ export class ClientController {
       const paginationDto: PaginationDto = {
         offset,
         limit,
+        sort: {
+          order: sortOrder || 'desc', // القيمة الافتراضية 'desc' للأحدث أولاً
+          key: sortBy || 'createdAt', // القيمة الافتراضية 'createdAt'
+        },
       };
 
       return await this.clientService.getClients(

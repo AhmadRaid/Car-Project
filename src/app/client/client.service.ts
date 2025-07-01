@@ -232,136 +232,148 @@ export class ClientService {
     }
   }
 
-  async getClients(
-    branchTerm: 'عملاء فرع ابحر' | 'عملاء فرع المدينة' | 'اخرى',
-    searchTerm: string,
-    paginationDto: PaginationDto,
-  ) {
-    try {
-      const { limit = 10, offset = 0 } = paginationDto;
+async getClients(
+  branchTerm: 'عملاء فرع ابحر' | 'عملاء فرع المدينة' | 'اخرى',
+  searchTerm: string,
+  paginationDto: PaginationDto,
+) {
+  try {
+    const { limit = 10, offset = 0, sort } = paginationDto;
 
-      // Validate pagination parameters
-      if (limit < 1 || limit > 100) {
-        throw new BadRequestException('Limit must be between 1 and 100');
-      }
-      if (offset < 0) {
-        throw new BadRequestException('Offset must be positive');
-      }
-
-      // Base pipeline stages
-      const pipeline: any[] = [
-        { $match: { isDeleted: false } },
-        {
-          $lookup: {
-            from: 'orders',
-            localField: 'orderIds',
-            foreignField: '_id',
-            as: 'orders',
-            pipeline: [
-              { $match: { isDeleted: false } },
-              { $sort: { createdAt: -1 } },
-              { $project: { isDeleted: 0, __v: 0 } },
-            ],
-          },
-        },
-        {
-          $addFields: {
-            orderStats: {
-              totalOrders: { $size: '$orders' },
-              activeGuarantees: {
-                $size: {
-                  $filter: {
-                    input: '$orders',
-                    as: 'order',
-                    cond: { $gt: ['$$order.guarantee.endDate', new Date()] },
-                  },
-                },
-              },
-            },
-          },
-        },
-        {
-          $project: {
-            orderIds: 0,
-            __v: 0,
-            isDeleted: 0,
-          },
-        },
-        { $sort: { createdAt: -1 } },
-      ];
-
-      // Add search if term exists
-      if (searchTerm?.trim()) {
-        pipeline.unshift({
-          $match: {
-            $or: [
-              { firstName: { $regex: searchTerm, $options: 'i' } },
-              { middleName: { $regex: searchTerm, $options: 'i' } },
-              { lastName: { $regex: searchTerm, $options: 'i' } },
-              { phone: { $regex: searchTerm, $options: 'i' } },
-              {
-                $expr: {
-                  $regexMatch: {
-                    input: {
-                      $concat: [
-                        '$firstName',
-                        ' ',
-                        '$middleName',
-                        ' ',
-                        '$lastName',
-                      ],
-                    },
-                    regex: searchTerm,
-                    options: 'i',
-                  },
-                },
-              },
-            ],
-          },
-        });
-      }
-
-      if (branchTerm) {
-        pipeline.unshift({
-          $match: {
-            branch: {
-              $regex: new RegExp(`^${branchTerm}$`, 'i'),
-            },
-          },
-        });
-      }
-
-      // Get total count
-      const countPipeline = [...pipeline, { $count: 'total' }];
-      const totalResult = await this.clientModel
-        .aggregate(countPipeline)
-        .exec();
-      const totalClients = totalResult[0]?.total || 0;
-
-      // Add pagination
-      const clients = await this.clientModel
-        .aggregate([...pipeline, { $skip: offset }, { $limit: limit }])
-        .exec();
-
-      const currentPage = Math.floor(offset / limit) + 1 || 0;
-      const totalPages = Math.ceil(totalClients / limit) || 0;
-      const nextPage = currentPage < totalPages ? currentPage + 1 : 0;
-      return {
-        pagination: {
-          totalClients,
-          currentPage,
-          totalPages,
-          nextPage,
-          limit: limit || 10,
-          offset: offset || 0,
-        },
-        clients,
-      };
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException('Failed to fetch clients');
+    // Validate pagination parameters
+    if (limit < 1 || limit > 100) {
+      throw new BadRequestException('Limit must be between 1 and 100');
     }
+    if (offset < 0) {
+      throw new BadRequestException('Offset must be positive');
+    }
+
+    // Base pipeline stages
+    const pipeline: any[] = [
+      { $match: { isDeleted: false } },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'orderIds',
+          foreignField: '_id',
+          as: 'orders',
+          pipeline: [
+            { $match: { isDeleted: false } },
+            { $sort: { createdAt: -1 } }, // ترتيب الطلبات دائماً من الأحدث للأقدم
+            { $project: { isDeleted: 0, __v: 0 } },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          orderStats: {
+            totalOrders: { $size: '$orders' },
+            activeGuarantees: {
+              $size: {
+                $filter: {
+                  input: '$orders',
+                  as: 'order',
+                  cond: { $gt: ['$$order.guarantee.endDate', new Date()] },
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          orderIds: 0,
+          __v: 0,
+          isDeleted: 0,
+        },
+      },
+    ];
+
+    // إضافة الترتيب حسب المعامل المطلوب
+    if (sort?.key && sort?.order) {
+      pipeline.push({
+        $sort: {
+          [sort.key]: sort.order === 'asc' ? 1 : -1
+        }
+      });
+    } else {
+      // الترتيب الافتراضي إذا لم يتم تحديد ترتيب
+      pipeline.push({ $sort: { createdAt: -1 } });
+    }
+
+    // Add search if term exists
+    if (searchTerm?.trim()) {
+      pipeline.unshift({
+        $match: {
+          $or: [
+            { firstName: { $regex: searchTerm, $options: 'i' } },
+            { middleName: { $regex: searchTerm, $options: 'i' } },
+            { lastName: { $regex: searchTerm, $options: 'i' } },
+            { phone: { $regex: searchTerm, $options: 'i' } },
+            {
+              $expr: {
+                $regexMatch: {
+                  input: {
+                    $concat: [
+                      '$firstName',
+                      ' ',
+                      '$middleName',
+                      ' ',
+                      '$lastName',
+                    ],
+                  },
+                  regex: searchTerm,
+                  options: 'i',
+                },
+              },
+            },
+          ],
+        },
+      });
+    }
+
+    if (branchTerm) {
+      pipeline.unshift({
+        $match: {
+          branch: {
+            $regex: new RegExp(`^${branchTerm}$`, 'i'),
+          },
+        },
+      });
+    }
+
+    // Get total count
+    const countPipeline = [...pipeline];
+    countPipeline.push({ $count: 'total' });
+    const totalResult = await this.clientModel
+      .aggregate(countPipeline)
+      .exec();
+    const totalClients = totalResult[0]?.total || 0;
+
+    // Add pagination
+    const clients = await this.clientModel
+      .aggregate([...pipeline, { $skip: offset }, { $limit: limit }])
+      .exec();
+
+    const currentPage = Math.floor(offset / limit) + 1 || 0;
+    const totalPages = Math.ceil(totalClients / limit) || 0;
+    const nextPage = currentPage < totalPages ? currentPage + 1 : 0;
+    return {
+      pagination: {
+        totalClients,
+        currentPage,
+        totalPages,
+        nextPage,
+        limit: limit || 10,
+        offset: offset || 0,
+      },
+      clients,
+    };
+  } catch (error) {
+    if (error instanceof BadRequestException) {
+      throw error;
+    }
+    throw new BadRequestException('Failed to fetch clients');
   }
+}
 }
