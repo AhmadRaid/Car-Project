@@ -20,12 +20,17 @@ import { JwtOrDeviceRequest } from './interfaces/JwtOrDeviceRequest';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Head()
-  handleHeadRequest(): void {}
+  // @Head()
+  // handleHeadRequest(): void {}
+  // @Get()
+  // getRoot(): string {
+  //   return 'Welcome to the Screens Backend API!';
+  // }
+
   @Get()
-  getRoot(): string {
-    return 'Welcome to the Screens Backend API!';
-  }
+getHello() {
+  return 'API is working!';
+}
 
   // @UseGuards(JwtOrDeviceAuthGuard)
   // @Get('increase-view')
