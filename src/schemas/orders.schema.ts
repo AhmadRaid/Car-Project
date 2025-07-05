@@ -17,8 +17,15 @@ export class Orders {
   @Prop({ required: true, type: String })
   carColor: string;
 
-  @Prop({ type: String, required: true })
-  carPlateNumber: string;
+  @Prop({
+    type: [String],
+    required: true,
+    validate: {
+      validator: (plate: string[]) => plate.length === 8,
+      message: 'Car plate must have exactly 8 characters',
+    },
+  })
+  carPlateNumber: string[];
 
   @Prop({ type: String, required: true })
   carManufacturer: string;
