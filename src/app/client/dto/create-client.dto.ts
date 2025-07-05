@@ -112,7 +112,8 @@ export class ServiceDto {
 
   @ValidateNested()
   @Type(() => GuaranteeDto)
-  guarantee: GuaranteeDto;
+  @IsOptional()
+  guarantee?: GuaranteeDto;
 }
 
 export class createClientAndOrderDto {
@@ -168,10 +169,9 @@ export class createClientAndOrderDto {
   @IsOptional()
   carSize: string;
 
-  @IsOptional()
- // @Validate(ValidateCarWithServices)
   @IsArray()
   // @ValidateNested({ each: true })
   // @Type(() => ServiceDto)
-  services?: ServiceDto[];
+   @IsOptional()
+  services?: ServiceDto[]; // Make services optional
 }
