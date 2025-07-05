@@ -157,7 +157,7 @@ export class createClientAndOrderDto {
   @IsOptional()
   carColor: string;
 
-  @IsString()
+  @IsArray()
   @IsOptional()
   carPlateNumber: string;
 
