@@ -92,7 +92,6 @@ export class ClientController {
     @Query('sort') sortOrder?: 'asc' | 'desc', // إضافة معامل الترتيب
     @Query('sortBy') sortBy?: string, // إضافة معامل الحقل الذي نريد الترتيب حسبه
   ) {
-    console.log('5888888888888888888888888888888888888888');
     
     try {
       if (limit < 1 || limit > 100) {

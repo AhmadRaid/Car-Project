@@ -29,10 +29,8 @@ export class OrdersController {
 
   @Get()
   async findAll(
-    @Query('clientId') clientId?: string,
-    @Query('guaranteeType') guaranteeType?: any,
   ) {
-    return this.ordersService.findAll({ clientId, guaranteeType });
+    return this.ordersService.findAll();
   }
 
   @Get(':id')

@@ -1,8 +1,18 @@
-import { 
-  IsString, IsOptional, IsEmail, IsEnum, IsArray, 
-  ValidateNested, IsDate, IsNumber, IsNotEmpty 
+import {
+  IsString,
+  IsOptional,
+  IsEmail,
+  IsEnum,
+  IsArray,
+  ValidateNested,
+  IsDate,
+  IsNumber,
+  IsNotEmpty,
+  Validate,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ValidateCarWithServices } from 'src/common/decorators/validate-if-car-fields-exist.decorator';
 
 export class GuaranteeDto {
   @IsString()
@@ -46,7 +56,8 @@ export class ServiceDto {
 
   @IsString()
   @IsOptional()
-  @IsEnum(['10', '7.5'])
+  @IsEnum(['10', '8','7.5','6.5'
+  ])
   protectionSize?: string;
 
   @IsString()
@@ -77,12 +88,12 @@ export class ServiceDto {
   @IsString()
   @IsOptional()
   @IsEnum([
-    'detailed_wash', 
-    'premium_wash', 
-    'leather_pedals', 
-    'blackout', 
-    'nano_interior_decor', 
-    'nano_interior_seats'
+    'detailed_wash',
+    'premium_wash',
+    'leather_pedals',
+    'blackout',
+    'nano_interior_decor',
+    'nano_interior_seats',
   ])
   additionType?: string;
 
@@ -135,31 +146,35 @@ export class createClientAndOrderDto {
   branch: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   carType: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   carModel: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   carColor: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   carPlateNumber: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   carManufacturer: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   carSize: string;
+  
 
+ @ValidateIf(o => o.carType && o.carModel && o.carColor && 
+                  o.carPlateNumber && o.carManufacturer && o.carSize )
+  @Validate(ValidateCarWithServices)
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ServiceDto)
-  services: ServiceDto[];
+  services?: ServiceDto[];
 }

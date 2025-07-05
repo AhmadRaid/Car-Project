@@ -19,7 +19,6 @@ async function bootstrap() {
 
   app.use(helmet());
 
-  
   // app.use(
   //   helmet({
   //     contentSecurityPolicy: {
@@ -46,22 +45,27 @@ async function bootstrap() {
     credentials: true,
   });
 
-
 app.useGlobalPipes(
   new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
     transform: true,
+    skipMissingProperties: false, // Ensure this is false
+    stopAtFirstError: false, // Important for custom validators
     exceptionFactory: (errors) => {
+      const errorMessages = errors.map(error => ({
+        field: error.property,
+        message: Object.values(error.constraints)[0]
+      }));
       return new BadRequestException({
-        message: 'Validation failed',
-        errors,
+        status: 'failed',
+        code: 400,
+        data: null,
+        message: errorMessages[0]?.message || 'Validation failed'
       });
-    },
-    stopAtFirstError: true,
-  }),
+    }
+  })
 );
-
-
-
 
   app.useGlobalInterceptors(new TransformAPIInterceptor(new LoggerService()));
 

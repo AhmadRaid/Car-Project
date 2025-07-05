@@ -23,19 +23,8 @@ export class OrdersService {
     }
   }
 
-  async findAll(filter?: {
-    clientId?: string;
-    guaranteeType?: string;
-  }): Promise<Orders[]> {
+  async findAll(): Promise<Orders[]> {
     const query: any = { isDeleted: false };
-
-    if (filter?.clientId) {
-      query.clientId = new Types.ObjectId(filter.clientId);
-    }
-
-    if (filter?.guaranteeType) {
-      query['guarantee.type'] = filter.guaranteeType;
-    }
 
     return this.ordersModel.find(query).exec();
   }
