@@ -7,15 +7,30 @@ import {
   ValidationArguments 
 } from 'class-validator';
 
-@ValidatorConstraint({ name: 'validateCarWithServices' })
+@ValidatorConstraint({ name: 'validateCarWithServices', async: false })
 export class ValidateCarWithServicesConstraint implements ValidatorConstraintInterface {
-  validate(services: any) {
-    console.log('VALIDATOR IS RUNNING!'); // This should appear in logs
+  validate(services: any, args: ValidationArguments) {
+    const dto = args.object as any;
+    
+    const hasCompleteCarInfo = dto.carType && 
+                              dto.carModel && 
+                              dto.carColor && 
+                              dto.carPlateNumber && 
+                              dto.carManufacturer && 
+                              dto.carSize;
+    
+    if (!hasCompleteCarInfo) {
+      return true;
+    }
+    
+    if (services === undefined || services === null) {
+      return false;
+    }
     return Array.isArray(services) && services.length > 0;
   }
 
-  defaultMessage() {
-    return 'Services array must not be empty when car information is provided';
+  defaultMessage(args: ValidationArguments) {
+    return 'Services are required when complete car information is provided';
   }
 }
 

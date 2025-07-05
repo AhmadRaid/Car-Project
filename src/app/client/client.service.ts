@@ -93,10 +93,53 @@ async createClient(
       client: client.toObject(),
       order: createdOrder?.toObject(),
     };
-  } catch (error) {
-    // Error handling remains the same
-    // ...
-  }
+   } catch (error) {
+      console.error('Error creating order:', error);
+
+      // Handle specific error types
+      if (error.code === 11000) {
+        throw new ConflictException(
+          'Client with this phone number already exists',
+        );
+      }
+
+      if (error.name === 'ValidationError') {
+        // Handle Mongoose validation errors
+        const errorMessages = Object.values(error.errors).map(
+          (err: any) => err.message,
+        );
+        throw new BadRequestException(
+          `Validation failed: ${errorMessages.join(', ')}`,
+        );
+      }
+
+      if (error.name === 'CastError') {
+        // Handle invalid data type errors
+        throw new BadRequestException(
+          `Invalid data type for field: ${error.path}`,
+        );
+      }
+
+      if (error instanceof Error && error.message.includes('required')) {
+        // Handle missing required fields
+        throw new BadRequestException(error.message);
+      }
+
+      // For date validation errors
+      if (
+        error.message.includes('invalid date') ||
+        error.message.includes('date format')
+      ) {
+        throw new BadRequestException(
+          'Invalid date format. Please use YYYY-MM-DD format',
+        );
+      }
+
+      // General error as last resort
+      throw new BadRequestException(
+        `Failed to create order: ${error.message || 'Unknown error occurred'}`,
+      );
+    }
 }
 
   private addServiceSpecificFields(service: ServiceDto, serviceData: any) {
