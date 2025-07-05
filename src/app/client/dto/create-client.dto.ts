@@ -56,8 +56,7 @@ export class ServiceDto {
 
   @IsString()
   @IsOptional()
-  @IsEnum(['10', '8','7.5','6.5'
-  ])
+  @IsEnum(['10', '8', '7.5', '6.5'])
   protectionSize?: string;
 
   @IsString()
@@ -168,13 +167,11 @@ export class createClientAndOrderDto {
   @IsString()
   @IsOptional()
   carSize: string;
-  
 
- @ValidateIf(o => o.carType && o.carModel && o.carColor && 
-                  o.carPlateNumber && o.carManufacturer && o.carSize )
-  @Validate(ValidateCarWithServices)
+  @IsOptional()
+ // @Validate(ValidateCarWithServices)
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ServiceDto)
+  // @ValidateNested({ each: true })
+  // @Type(() => ServiceDto)
   services?: ServiceDto[];
 }

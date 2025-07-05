@@ -40,6 +40,8 @@ async createClient(
         branch: createClientDto.branch,
       });
     }
+    console.log('22222222222222222222');
+    
 
     // 2. Check if we should create an order
     const hasCarFields = createClientDto.carType && 
@@ -53,6 +55,9 @@ async createClient(
 
     if (hasCarFields && createClientDto.services && createClientDto.services.length > 0) {
       // Prepare services
+
+          console.log('88888888888888');
+
       const preparedServices = createClientDto.services.map((service) => ({
         serviceType: service.serviceType,
         dealDetails: service.dealDetails,
@@ -69,6 +74,8 @@ async createClient(
         // Add service-specific fields here
       }));
 
+          console.log('9999999999999');
+
       // Create order
       createdOrder = await this.ordersModel.create({
         clientId: client._id,
@@ -81,12 +88,17 @@ async createClient(
         services: preparedServices,
       });
 
+          console.log('00000000000000000000000');
+
+
       // Update client with order reference
       await this.clientModel.findByIdAndUpdate(
         client._id,
         { $push: { orderIds: createdOrder._id } },
         { new: true }
       );
+          console.log('33333333333333333');
+
     }
 
     return {
