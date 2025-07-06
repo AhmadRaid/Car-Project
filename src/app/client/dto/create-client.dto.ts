@@ -4,174 +4,87 @@ import {
   IsEmail,
   IsEnum,
   IsArray,
-  ValidateNested,
-  IsDate,
-  IsNumber,
   IsNotEmpty,
-  Validate,
   ValidateIf,
+  ValidateNested,
+  IsNotEmptyObject,
 } from 'class-validator';
+import { ServiceDto } from './service.dto';
 import { Type } from 'class-transformer';
-import { ValidateCarWithServices } from 'src/common/decorators/validate-if-car-fields-exist.decorator';
-
-export class GuaranteeDto {
-  @IsString()
-  @IsNotEmpty()
-  @IsEnum(['2 سنوات', '3 سنوات', '5 سنوات', '8 سنوات', '10 سنوات'])
-  typeGuarantee: string;
-
-  @IsDate()
-  @Type(() => Date)
-  @IsNotEmpty()
-  startDate: Date;
-
-  @IsDate()
-  @Type(() => Date)
-  @IsNotEmpty()
-  endDate: Date;
-
-  @IsString()
-  @IsOptional()
-  terms?: string;
-
-  @IsString()
-  @IsOptional()
-  notes?: string;
-}
-
-export class ServiceDto {
-  @IsString()
-  @IsNotEmpty()
-  @IsEnum(['polish', 'protection', 'insulator', 'additions'])
-  serviceType: string;
-
-  @IsString()
-  @IsOptional()
-  dealDetails?: string;
-
-  @IsString()
-  @IsOptional()
-  @IsEnum(['glossy', 'matte', 'colored'])
-  protectionFinish?: string;
-
-  @IsString()
-  @IsOptional()
-  @IsEnum(['10', '8', '7.5', '6.5'])
-  protectionSize?: string;
-
-  @IsString()
-  @IsOptional()
-  @IsEnum(['full', 'half', 'quarter', 'edges', 'other'])
-  protectionCoverage?: string;
-
-  @IsString()
-  @IsOptional()
-  @IsEnum(['ceramic', 'carbon', 'crystal'])
-  insulatorType?: string;
-
-  @IsString()
-  @IsOptional()
-  @IsEnum(['full', 'half', 'piece', 'shield', 'external'])
-  insulatorCoverage?: string;
-
-  @IsString()
-  @IsOptional()
-  @IsEnum(['external', 'internal', 'seats', 'piece', 'water_polish'])
-  polishType?: string;
-
-  @IsString()
-  @IsOptional()
-  @IsEnum(['1', '2', '3'])
-  polishSubType?: string;
-
-  @IsString()
-  @IsOptional()
-  @IsEnum([
-    'detailed_wash',
-    'premium_wash',
-    'leather_pedals',
-    'blackout',
-    'nano_interior_decor',
-    'nano_interior_seats',
-  ])
-  additionType?: string;
-
-  @IsString()
-  @IsOptional()
-  @IsEnum(['full', 'external_only', 'internal_only', 'engine'])
-  washScope?: string;
-
-  @IsNumber()
-  @IsOptional()
-  servicePrice?: number;
-
-  @IsDate()
-  @IsOptional()
-  @Type(() => Date)
-  serviceDate?: Date;
-
-  @ValidateNested()
-  @Type(() => GuaranteeDto)
-  @IsOptional()
-  guarantee?: GuaranteeDto;
-}
 
 export class createClientAndOrderDto {
-  @IsString()
-  @IsNotEmpty()
+  // Client Information
+  @IsString({ message: 'يجب أن يكون الاسم الأول نصًا' })
+  @IsNotEmpty({ message: 'الاسم الأول مطلوب' })
   firstName: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'يجب أن يكون الاسم الأوسط نصًا' })
+  @IsNotEmpty({ message: 'الاسم الأوسط مطلوب' })
   middleName: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'يجب أن يكون الاسم الأخير نصًا' })
+  @IsNotEmpty({ message: 'الاسم الأخير مطلوب' })
   lastName: string;
 
-  @IsEmail()
+  @IsEmail({}, { message: 'يجب أن يكون البريد الإلكتروني صالحًا' })
   @IsOptional()
   email?: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'يجب أن يكون رقم الهاتف نصًا' })
+  @IsNotEmpty({ message: 'رقم الهاتف مطلوب' })
   phone: string;
 
-  @IsString()
-  @IsEnum(['individual', 'company'])
+  @IsString({ message: 'يجب أن يكون نوع العميل نصًا' })
+  @IsEnum(['individual', 'company'], {
+    message: 'نوع العميل يجب أن يكون إما فردي (individual) أو شركة (company)',
+  })
   clientType: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'يجب أن يكون الفرع نصًا' })
+  @IsNotEmpty({ message: 'الفرع مطلوب' })
   branch: string;
 
-  @IsString()
-  @IsOptional()
-  carType: string;
+  // Car Information (required if services are provided)
+  @IsString({ message: 'يجب أن يكون نوع السيارة نصًا' })
+  @ValidateIf((o) => o.services && o.services.length > 0)
+  @IsNotEmpty({ message: 'نوع السيارة مطلوب عند إضافة خدمات' })
+  carType?: string;
 
-  @IsString()
-  @IsOptional()
-  carModel: string;
+  @IsString({ message: 'يجب أن يكون موديل السيارة نصًا' })
+  @ValidateIf((o) => o.services && o.services.length > 0)
+  @IsNotEmpty({ message: 'موديل السيارة مطلوب عند إضافة خدمات' })
+  carModel?: string;
 
-  @IsString()
-  @IsOptional()
-  carColor: string;
+  @IsString({ message: 'يجب أن يكون لون السيارة نصًا' })
+  @ValidateIf((o) => o.services && o.services.length > 0)
+  @IsNotEmpty({ message: 'لون السيارة مطلوب عند إضافة خدمات' })
+  carColor?: string;
 
-  @IsArray()
-  @IsOptional()
-  carPlateNumber: string;
+  @IsArray({ message: 'يجب أن يكون رقم لوحة السيارة مصفوفة' })
+  @ValidateIf((o) => o.services && o.services.length > 0)
+  @IsNotEmpty({ message: 'رقم لوحة السيارة مطلوب عند إضافة خدمات' })
+  carPlateNumber?: string;
 
-  @IsString()
-  @IsOptional()
-  carManufacturer: string;
+  @IsString({ message: 'يجب أن يكون صانع السيارة نصًا' })
+  @ValidateIf((o) => o.services && o.services.length > 0)
+  @IsNotEmpty({ message: 'صانع السيارة مطلوب عند إضافة خدمات' })
+  carManufacturer?: string;
 
-  @IsString()
-  @IsOptional()
-  carSize: string;
+  @IsString({ message: 'يجب أن يكون حجم السيارة نصًا' })
+  @ValidateIf((o) => o.services && o.services.length > 0)
+  @IsNotEmpty({ message: 'حجم السيارة مطلوب عند إضافة خدمات' })
+  carSize?: string;
 
-  @IsArray()
-  // @ValidateNested({ each: true })
-  // @Type(() => ServiceDto)
-   @IsOptional()
-  services?: ServiceDto[]; // Make services optional
+  @ValidateIf(
+    (o) =>
+      o.carType !== undefined &&
+      o.carModel !== undefined &&
+      o.carColor !== undefined &&
+      o.carPlateNumber !== undefined &&
+      o.carManufacturer !== undefined &&
+      o.carSize !== undefined,
+  )
+  @IsArray({ message: 'الرجاء ارسال حقول كمصفوفة' })
+  @IsNotEmpty({ message: ' الخدمات مطلوبة في حال ادخال بيانات السيارة' })
+  services?: ServiceDto[];
 }

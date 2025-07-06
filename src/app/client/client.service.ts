@@ -11,7 +11,8 @@ import { Model, Types } from 'mongoose';
 import { PaginationDto } from 'src/common/pagination-dto/pagination.dto';
 import { Client } from 'src/schemas/client.schema';
 import { Orders, OrdersDocument } from 'src/schemas/orders.schema';
-import { createClientAndOrderDto, ServiceDto } from './dto/create-client.dto';
+import { createClientAndOrderDto } from './dto/create-client.dto';
+import { ServiceDto } from './dto/service.dto';
 
 @Injectable()
 export class ClientService {
