@@ -60,7 +60,7 @@ export class createClientAndOrderDto {
   @IsNotEmpty({ message: 'لون السيارة مطلوب عند إضافة خدمات' })
   carColor?: string;
 
-  @IsArray({ message: 'يجب أن يكون رقم لوحة السيارة مصفوفة' })
+  @IsString({ message: 'يجب أن يكون رقم لوحة السيارة نص' })
   @ValidateIf((o) => o.services && o.services.length > 0)
   @IsNotEmpty({ message: 'رقم لوحة السيارة مطلوب عند إضافة خدمات' })
   carPlateNumber?: string;
