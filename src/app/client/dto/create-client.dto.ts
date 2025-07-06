@@ -85,6 +85,6 @@ export class createClientAndOrderDto {
       o.carSize !== undefined,
   )
   @IsArray({ message: 'الرجاء ارسال حقول كمصفوفة' })
-  @IsNotEmpty({ message: ' الخدمات مطلوبة في حال ادخال بيانات السيارة' })
+  @IsOptional()
   services?: ServiceDto[];
 }
