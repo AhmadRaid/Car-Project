@@ -16,6 +16,8 @@ import {
 import { ClientService } from './client.service';
 import { PaginationDto } from 'src/common/pagination-dto/pagination.dto';
 import { createClientAndOrderDto } from './dto/create-client.dto';
+import { UpdateClientDto } from './dto/update-client.dto';
+import { Client, ClientDocument } from 'src/schemas/client.schema';
 
 @Controller('clients')
 //@UseGuards(JwtAuthGuard)
@@ -92,7 +94,6 @@ export class ClientController {
     @Query('sort') sortOrder?: 'asc' | 'desc', // إضافة معامل الترتيب
     @Query('sortBy') sortBy?: string, // إضافة معامل الحقل الذي نريد الترتيب حسبه
   ) {
-    
     try {
       if (limit < 1 || limit > 100) {
         throw new BadRequestException('Limit must be between 1 and 100');
@@ -121,5 +122,22 @@ export class ClientController {
       }
       throw new BadRequestException('Failed to process client request');
     }
+  }
+
+  @Patch(':clientId')
+  async updateClient(
+    @Param('clientId') clientId: string,
+    @Body() updateClientDto: UpdateClientDto,
+  ): Promise<Client> {
+    try {
+      return await this.clientService.updateClient(clientId, updateClientDto);
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  @Delete(':clientId')
+  async deleteClient(@Param('clientId') clientId: string) {
+    return this.clientService.deleteClient(clientId);
   }
 }

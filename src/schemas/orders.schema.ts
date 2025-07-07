@@ -22,7 +22,7 @@ export class Orders {
     required: true,
     validate: {
       validator: (plate: string) => plate.length === 8 || plate.length === 7,
-      message: 'Car plate must have exactly 8 characters',
+      message: 'Car plate must have exactly 8 or 7 characters',
     },
   })
   carPlateNumber: string[];

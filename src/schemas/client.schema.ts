@@ -42,6 +42,16 @@ export class Client {
   @Prop({ type: String })
   address: string;
 
+   @Prop({
+    type: Number,
+    enum: [1, 2, 3, 4, 5],
+    default: null,
+  })
+  rating: number;
+
+  @Prop({ type: String })
+  notes: string;
+
   @Prop({ type: Boolean, default: false })
   isDeleted: boolean;
 }

@@ -13,6 +13,7 @@ import { Client } from 'src/schemas/client.schema';
 import { Orders, OrdersDocument } from 'src/schemas/orders.schema';
 import { createClientAndOrderDto } from './dto/create-client.dto';
 import { ServiceDto } from './dto/service.dto';
+import { UpdateClientDto } from './dto/update-client.dto';
 
 @Injectable()
 export class ClientService {
@@ -21,92 +22,91 @@ export class ClientService {
     @InjectModel(Orders.name) private ordersModel: Model<OrdersDocument>,
   ) {}
 
-async createClient(
-  createClientDto: createClientAndOrderDto,
-): Promise<{ client: ClientDocument; order?: OrdersDocument }> {
-  try {
-    // 1. Create or find client
-    let client = await this.clientModel.findOne({
-      phone: createClientDto.phone,
-    });
-
-    if (!client) {
-      client = await this.clientModel.create({
-        firstName: createClientDto.firstName,
-        middleName: createClientDto.middleName,
-        lastName: createClientDto.lastName,
-        email: createClientDto.email,
+  async createClient(
+    createClientDto: createClientAndOrderDto,
+  ): Promise<{ client: ClientDocument; order?: OrdersDocument }> {
+    try {
+      // 1. Create or find client
+      let client = await this.clientModel.findOne({
         phone: createClientDto.phone,
-        clientType: createClientDto.clientType,
-        branch: createClientDto.branch,
-      });
-    }
-    console.log('22222222222222222222');
-    
-
-    // 2. Check if we should create an order
-    const hasCarFields = createClientDto.carType && 
-                        createClientDto.carModel && 
-                        createClientDto.carColor && 
-                        createClientDto.carPlateNumber && 
-                        createClientDto.carManufacturer && 
-                        createClientDto.carSize;
-
-    let createdOrder: OrdersDocument | null = null;
-
-    if (hasCarFields && createClientDto.services && createClientDto.services.length > 0) {
-      // Prepare services
-
-          console.log('88888888888888');
-
-      const preparedServices = createClientDto.services.map((service) => ({
-        serviceType: service.serviceType,
-        dealDetails: service.dealDetails,
-        servicePrice: service.servicePrice,
-        guarantee: {
-          typeGuarantee: service.guarantee.typeGuarantee,
-          startDate: new Date(service.guarantee.startDate),
-          endDate: new Date(service.guarantee.endDate),
-          terms: service.guarantee.terms,
-          notes: service.guarantee.notes,
-          status: 'inactive',
-          accepted: false,
-        },
-        // Add service-specific fields here
-      }));
-
-          console.log('9999999999999');
-
-      // Create order
-      createdOrder = await this.ordersModel.create({
-        clientId: client._id,
-        carType: createClientDto.carType,
-        carModel: createClientDto.carModel,
-        carColor: createClientDto.carColor,
-        carPlateNumber: createClientDto.carPlateNumber,
-        carManufacturer: createClientDto.carManufacturer,
-        carSize: createClientDto.carSize,
-        services: preparedServices,
       });
 
-          console.log('00000000000000000000000');
+      if (!client) {
+        client = await this.clientModel.create({
+          firstName: createClientDto.firstName,
+          middleName: createClientDto.middleName,
+          lastName: createClientDto.lastName,
+          email: createClientDto.email,
+          phone: createClientDto.phone,
+          clientType: createClientDto.clientType,
+          branch: createClientDto.branch,
+        });
+      }
+      console.log('22222222222222222222');
 
+      // 2. Check if we should create an order
+      const hasCarFields =
+        createClientDto.carType &&
+        createClientDto.carModel &&
+        createClientDto.carColor &&
+        createClientDto.carPlateNumber &&
+        createClientDto.carManufacturer &&
+        createClientDto.carSize;
 
-      // Update client with order reference
-      await this.clientModel.findByIdAndUpdate(
-        client._id,
-        { $push: { orderIds: createdOrder._id } },
-        { new: true }
-      );
-          console.log('33333333333333333');
+      let createdOrder: OrdersDocument | null = null;
+      let preparedServices;
 
-    }
+      if (
+        hasCarFields &&
+        createClientDto.services &&
+        createClientDto.services.length > 0
+      ) {
+        // Prepare services
 
-    return {
-      client: client.toObject(),
-      order: createdOrder?.toObject(),
-    };
-   } catch (error) {
+        console.log('88888888888888');
+
+        const preparedServices = createClientDto.services.map((service) => ({
+          serviceType: service.serviceType,
+          dealDetails: service.dealDetails,
+          servicePrice: service.servicePrice,
+          guarantee: {
+            typeGuarantee: service.guarantee.typeGuarantee,
+            startDate: new Date(service.guarantee.startDate),
+            endDate: new Date(service.guarantee.endDate),
+            terms: service.guarantee.terms,
+            notes: service.guarantee.notes,
+            status: 'inactive',
+            accepted: false,
+          },
+          // Add service-specific fields here
+        }));
+      }
+      if (hasCarFields) {
+        // Create order
+        createdOrder = await this.ordersModel.create({
+          clientId: client._id,
+          carType: createClientDto.carType,
+          carModel: createClientDto.carModel,
+          carColor: createClientDto.carColor,
+          carPlateNumber: createClientDto.carPlateNumber,
+          carManufacturer: createClientDto.carManufacturer,
+          carSize: createClientDto.carSize,
+          services: preparedServices || [],
+        });
+
+        // Update client with order reference
+        await this.clientModel.findByIdAndUpdate(
+          client._id,
+          { $push: { orderIds: createdOrder._id } },
+          { new: true },
+        );
+      }
+
+      return {
+        client: client.toObject(),
+        order: createdOrder?.toObject(),
+      };
+    } catch (error) {
       console.error('Error creating order:', error);
 
       // Handle specific error types
@@ -153,7 +153,7 @@ async createClient(
         `Failed to create order: ${error.message || 'Unknown error occurred'}`,
       );
     }
-}
+  }
 
   private addServiceSpecificFields(service: ServiceDto, serviceData: any) {
     switch (service.serviceType) {
@@ -396,5 +396,76 @@ async createClient(
       }
       throw new BadRequestException('Failed to fetch clients');
     }
+  }
+
+  async updateClient(
+    clientId: string,
+    updateClientDto: UpdateClientDto,
+  ): Promise<Client> {
+    // 1. Validate ObjectId format
+    if (!Types.ObjectId.isValid(clientId)) {
+      throw new BadRequestException('Invalid client ID format');
+    }
+
+    // 2. Check if phone/email already exists (in parallel for better performance)
+    const [existingPhone, existingEmail] = await Promise.all([
+      updateClientDto.phone
+        ? this.clientModel.findOne({
+            phone: updateClientDto.phone,
+            _id: { $ne: clientId },
+          })
+        : null,
+      updateClientDto.email
+        ? this.clientModel.findOne({
+            email: updateClientDto.email,
+            _id: { $ne: clientId },
+          })
+        : null,
+    ]);
+
+    if (existingPhone) {
+      throw new ConflictException('Phone number already in use');
+    }
+    if (existingEmail) {
+      throw new ConflictException('Email already in use');
+    }
+
+    // 3. Update client with atomic operation
+    const updatedClient = await this.clientModel
+      .findByIdAndUpdate(
+        clientId,
+        updateClientDto,
+        { new: true, runValidators: true }, // Ensures updated doc is returned & schema validations run
+      )
+      .lean<Client>()
+      .exec();
+
+    if (!updatedClient) {
+      throw new NotFoundException('Client not found');
+    }
+
+    return updatedClient;
+  }
+
+  async deleteClient(clientId: string): Promise<{ message: string }> {
+    if (!Types.ObjectId.isValid(clientId)) {
+      throw new BadRequestException('Invalid client ID format');
+    }
+    const deleteClient = await this.clientModel
+      .findByIdAndUpdate(
+        clientId,
+        {
+          isDeleted: true,
+        },
+        { new: true, runValidators: true }, // Ensures updated doc is returned & schema validations run
+      )
+      .lean<Client>()
+      .exec();
+
+    if (!deleteClient) {
+      throw new NotFoundException('Client not found succefully');
+    }
+
+    return { message: 'Client is deleted' };
   }
 }
