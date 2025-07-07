@@ -8,6 +8,7 @@ import {
   ValidateNested,
   IsArray,
   ArrayMinSize,
+  IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -155,7 +156,7 @@ export class AddServicesToOrderDto {
 
   @IsArray()
   @ArrayMinSize(1)
- // @ValidateNested({ each: true })
- // @Type(() => ServiceDto)
+  @ValidateNested({ each: true })
+  @Type(() => ServiceDto)
   services: ServiceDto[];
 }
