@@ -156,7 +156,7 @@ export class AddServicesToOrderDto {
 
   @IsArray()
   @ArrayMinSize(1)
-  @ValidateNested({ each: true })
-  @Type(() => ServiceDto)
+  // @ValidateNested({ each: true })
+  // @Type(() => ServiceDto)
   services: ServiceDto[];
 }
