@@ -7,6 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Orders, OrdersDocument } from 'src/schemas/orders.schema';
 import { AddGuaranteeDto } from './dto/create-guarantee.dto';
+import { AddServicesToOrderDto } from './dto/add-service.dto';
 
 @Injectable()
 export class OrdersService {
@@ -237,5 +238,100 @@ export class OrdersService {
     }
 
     return result;
+  }
+
+  async addServicesToOrder(addServicesDto: AddServicesToOrderDto) {
+    try {
+      // Validate order ID
+      if (!Types.ObjectId.isValid(addServicesDto.orderId)) {
+        throw new BadRequestException('Invalid order ID format');
+      }
+
+      // Find the order
+      const order = await this.ordersModel.findById(addServicesDto.orderId);
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
+
+      // Prepare and add all new services
+      const newServices = addServicesDto.services.map((serviceDto) => {
+        const service: any = {
+          _id: new Types.ObjectId(),
+          serviceType: serviceDto.serviceType,
+          dealDetails: serviceDto.dealDetails,
+          servicePrice: serviceDto.servicePrice,
+          guarantee: {
+            typeGuarantee: serviceDto.guarantee.typeGuarantee,
+            startDate: new Date(serviceDto.guarantee.startDate),
+            endDate: new Date(serviceDto.guarantee.endDate),
+            terms: serviceDto.guarantee.terms,
+            notes: serviceDto.guarantee.notes,
+            status: 'inactive',
+            accepted: false,
+          },
+        };
+
+        // Add service-specific fields based on service type
+        switch (serviceDto.serviceType) {
+          case 'protection':
+            service.protectionFinish = serviceDto.protectionFinish;
+            service.protectionSize = serviceDto.protectionSize;
+            service.protectionCoverage = serviceDto.protectionCoverage;
+            service.originalCarColor = serviceDto.originalCarColor;
+            service.protectionColor = serviceDto.protectionColor;
+            break;
+
+          case 'insulator':
+            service.insulatorType = serviceDto.insulatorType;
+            service.insulatorCoverage = serviceDto.insulatorCoverage;
+            break;
+
+          case 'polish':
+            service.polishType = serviceDto.polishType;
+            service.polishSubType = serviceDto.polishSubType;
+            break;
+
+          case 'additions':
+            service.additionType = serviceDto.additionType;
+            service.washScope = serviceDto.washScope;
+            break;
+        }
+
+        return service;
+      });
+
+      // Add all services to the order
+      order.services.push(...newServices);
+      const updatedOrder = await order.save();
+
+      return {
+        success: true,
+        message: `${newServices.length} service(s) added successfully`,
+        order: updatedOrder.toObject(),
+      };
+    } catch (error) {
+      console.error('Error adding services:', error);
+
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      // Handle specific MongoDB errors
+      if (error.name === 'ValidationError') {
+        const errorMessages = Object.values(error.errors).map(
+          (err: any) => err.message,
+        );
+        throw new BadRequestException(
+          `Validation failed: ${errorMessages.join(', ')}`,
+        );
+      }
+
+      throw new BadRequestException(
+        error.message || 'Failed to add services to order',
+      );
+    }
   }
 }

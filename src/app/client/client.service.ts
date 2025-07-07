@@ -14,6 +14,7 @@ import { Orders, OrdersDocument } from 'src/schemas/orders.schema';
 import { createClientAndOrderDto } from './dto/create-client.dto';
 import { ServiceDto } from './dto/service.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { AddServicesToOrderDto } from '../orders/dto/add-service.dto';
 
 @Injectable()
 export class ClientService {
@@ -151,6 +152,141 @@ export class ClientService {
       // General error as last resort
       throw new BadRequestException(
         `Failed to create order: ${error.message || 'Unknown error occurred'}`,
+      );
+    }
+  }
+
+  async addServicesToOrder(addServicesDto: AddServicesToOrderDto) {
+    // Validate input
+    if (!addServicesDto || typeof addServicesDto !== 'object') {
+      throw new BadRequestException('Invalid input data');
+    }
+
+    try {
+      // Validate order ID
+      if (!Types.ObjectId.isValid(addServicesDto.orderId)) {
+        throw new BadRequestException('Invalid order ID format');
+      }
+
+      // Find the order
+      const order = await this.ordersModel.findById(addServicesDto.orderId);
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
+
+      // Validate services array
+      if (
+        !Array.isArray(addServicesDto.services) ||
+        addServicesDto.services.length === 0
+      ) {
+        throw new BadRequestException('At least one service is required');
+      }
+
+      // Prepare new services
+      const newServices = addServicesDto.services.map((serviceDto) => {
+        const service: any = {
+          _id: new Types.ObjectId(),
+          serviceType: serviceDto.serviceType,
+          dealDetails: serviceDto.dealDetails,
+          servicePrice: serviceDto.servicePrice,
+          guarantee: {
+            typeGuarantee: serviceDto.guarantee.typeGuarantee,
+            startDate: new Date(serviceDto.guarantee.startDate),
+            endDate: new Date(serviceDto.guarantee.endDate),
+            terms: serviceDto.guarantee.terms,
+            notes: serviceDto.guarantee.notes,
+            status: 'inactive',
+            accepted: false,
+          },
+        };
+
+        // Add service-specific fields
+        switch (serviceDto.serviceType) {
+          case 'protection':
+            if (serviceDto.protectionFinish)
+              service.protectionFinish = serviceDto.protectionFinish;
+            if (serviceDto.protectionSize)
+              service.protectionSize = serviceDto.protectionSize;
+            if (serviceDto.protectionCoverage)
+              service.protectionCoverage = serviceDto.protectionCoverage;
+            if (serviceDto.originalCarColor)
+              service.originalCarColor = serviceDto.originalCarColor;
+            if (serviceDto.protectionColor)
+              service.protectionColor = serviceDto.protectionColor;
+            break;
+
+          case 'insulator':
+            if (serviceDto.insulatorType)
+              service.insulatorType = serviceDto.insulatorType;
+            if (serviceDto.insulatorCoverage)
+              service.insulatorCoverage = serviceDto.insulatorCoverage;
+            break;
+
+          case 'polish':
+            if (serviceDto.polishType)
+              service.polishType = serviceDto.polishType;
+            if (serviceDto.polishSubType)
+              service.polishSubType = serviceDto.polishSubType;
+            break;
+
+          case 'additions':
+            if (serviceDto.additionType)
+              service.additionType = serviceDto.additionType;
+            if (serviceDto.washScope) service.washScope = serviceDto.washScope;
+            break;
+        }
+
+        return service;
+      });
+
+      // Add services to order
+      order.services.push(...newServices);
+      const updatedOrder = await order.save();
+
+      return {
+        success: true,
+        message: `${newServices.length} service(s) added successfully`,
+        order: updatedOrder.toObject(),
+      };
+    } catch (error) {
+      console.error('Error adding services:', error);
+
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      // Handle specific MongoDB errors
+      if (error.name === 'ValidationError') {
+        const errorMessages = Object.values(error.errors).map(
+          (err: any) => err.message,
+        );
+        throw new BadRequestException(
+          `Validation failed: ${errorMessages.join(', ')}`,
+        );
+      }
+
+      // Handle date parsing errors
+      if (
+        error instanceof RangeError &&
+        error.message.includes('Invalid time value')
+      ) {
+        throw new BadRequestException(
+          'Invalid date format. Please use YYYY-MM-DD format',
+        );
+      }
+
+      // Handle null/undefined errors
+      if (
+        error.message.includes('Cannot convert undefined or null to object')
+      ) {
+        throw new BadRequestException('Missing required fields in the request');
+      }
+
+      throw new BadRequestException(
+        error.message || 'Failed to add services to order',
       );
     }
   }

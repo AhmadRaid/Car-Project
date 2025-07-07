@@ -16,6 +16,7 @@ import { OrdersService } from './orders.service';
 import { AddGuaranteeDto } from './dto/create-guarantee.dto';
 import { Role } from 'src/common/decorators/roles.decorator';
 import { userRoles } from 'src/common/enum/userRoles.enum';
+import { AddServicesToOrderDto } from './dto/add-service.dto';
 
 @Controller('orders')
 //@UseGuards(JwtAuthGuard)
@@ -28,9 +29,13 @@ export class OrdersController {
   }
 
   @Get()
-  async findAll(
-  ) {
+  async findAll() {
     return this.ordersService.findAll();
+  }
+
+  @Post('add-service')
+  async addServiceToOrder(@Body() addServiceDto: AddServicesToOrderDto) {
+    return this.ordersService.addServicesToOrder(addServiceDto);
   }
 
   @Get(':id')
@@ -61,7 +66,7 @@ export class OrdersController {
   async findActiveGuarantees() {
     return this.ordersService.findActiveGuarantees();
   }
-  
+
   @Patch(':orderId/guarantee/:guaranteeId/status')
   async updateGuaranteeStatus(
     @Param('orderId') orderId: string,
@@ -90,7 +95,10 @@ export class OrdersController {
     @Param('guaranteeId') guaranteeIndex: string,
     @Body('accepted') accepted: boolean,
   ) {
-    return this.ordersService.updateGuaranteeAcceptance(orderId, guaranteeIndex, accepted);
+    return this.ordersService.updateGuaranteeAcceptance(
+      orderId,
+      guaranteeIndex,
+      accepted,
+    );
   }
-
 }

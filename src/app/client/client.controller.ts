@@ -124,6 +124,8 @@ export class ClientController {
     }
   }
 
+
+
   @Patch(':clientId')
   async updateClient(
     @Param('clientId') clientId: string,
