@@ -23,7 +23,7 @@ export class Client {
   @Prop({ type: String, enum: ClientType })
   clientType: ClientType;
 
-  @Prop({ type: String, required: true })
+  @Prop({  })
   phone: string;
 
   @Prop({ type: [Types.ObjectId], ref: 'Order', default: [] })
@@ -42,7 +42,7 @@ export class Client {
   @Prop({ type: String })
   address: string;
 
-   @Prop({
+  @Prop({
     type: Number,
     enum: [1, 2, 3, 4, 5],
     default: null,

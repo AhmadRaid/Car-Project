@@ -8,7 +8,8 @@ import {
   IsEnum,
   IsBoolean,
   IsPhoneNumber,
-  IsEmail
+  IsEmail,
+  Matches
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -38,7 +39,10 @@ export class UpdateClientDto {
   email?: string;
 
   @IsOptional()
-  @IsPhoneNumber('SA') 
+  @IsString()
+  @Matches(/^05\d{8}$/, {
+    message: 'يجب أن يبدأ رقم الهاتف بـ 05 ويتكون من 10 أرقام',
+  })
   phone?: string;
 
   @IsOptional()

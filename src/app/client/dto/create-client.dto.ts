@@ -8,6 +8,10 @@ import {
   ValidateIf,
   ValidateNested,
   IsNotEmptyObject,
+  IsNumber,
+  Min,
+  Max,
+  Matches,
 } from 'class-validator';
 import { ServiceDto } from './service.dto';
 import { Type } from 'class-transformer';
@@ -30,8 +34,10 @@ export class createClientAndOrderDto {
   @IsOptional()
   email?: string;
 
-  @IsString({ message: 'يجب أن يكون رقم الهاتف نصًا' })
-  @IsNotEmpty({ message: 'رقم الهاتف مطلوب' })
+  @IsString()
+  @Matches(/^05\d{8}$/, {
+    message: 'يجب أن يبدأ رقم الهاتف بـ 05 ويتكون من 10 أرقام',
+  })
   phone: string;
 
   @IsString({ message: 'يجب أن يكون نوع العميل نصًا' })
