@@ -43,8 +43,6 @@ export class ClientService {
           branch: createClientDto.branch,
         });
       }
-      console.log('22222222222222222222');
-
       // 2. Check if we should create an order
       const hasCarFields =
         createClientDto.carType &&
@@ -64,9 +62,8 @@ export class ClientService {
       ) {
         // Prepare services
 
-        console.log('88888888888888');
 
-        const preparedServices = createClientDto.services.map((service) => ({
+         preparedServices = createClientDto.services.map((service) => ({
           serviceType: service.serviceType,
           dealDetails: service.dealDetails,
           servicePrice: service.servicePrice,
@@ -173,6 +170,8 @@ export class ClientService {
       if (!order) {
         throw new NotFoundException('Order not found');
       }
+
+      
 
       // Validate services array
       if (

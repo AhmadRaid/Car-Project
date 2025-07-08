@@ -38,9 +38,9 @@ export class OrdersController {
     return this.ordersService.addServicesToOrder(addServiceDto);
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: string) {
-    const order = await this.ordersService.findOne(id);
+  @Get(':orderId')
+  async findOne(@Param('orderId') orderId: string) {
+    const order = await this.ordersService.findOne(orderId);
     if (!order) {
       throw new NotFoundException('Order not found');
     }
