@@ -25,9 +25,61 @@ export class OrdersService {
   }
 
   async findAll(): Promise<Orders[]> {
-    const query: any = { isDeleted: false };
+  const [result] = await this.ordersModel.aggregate([
+    {
+      $match: {
+        isDeleted: false,
+      },
+    },
+    {
+      $limit: 1,
+    },
+    {
+      $lookup: {
+        from: 'clients',
+        localField: 'clientId',
+        foreignField: '_id',
+        as: 'client',
+      },
+    },
+    {
+      $unwind: {
+        path: '$client',
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $addFields: {
+        // استبدال clientId ببيانات العميل الكاملة
+        clientId: '$client',
+        // إضافة الحقول المطلوبة في المستوى الرئيسي
+        clientName: {
+          $concat: [
+            '$client.firstName',
+            ' ',
+            '$client.middleName',
+            ' ',
+            '$client.lastName',
+          ],
+        },
+        clientNumber: '$client.clientNumber',
+      },
+    },
+    {
+      $project: {
+        client: 0, // إزالة حقل client المنفصل
+        'clientId.__v': 0,
+        'clientId.orderIds': 0,
+        'clientId.isDeleted': 0,
+      },
+    },
+  ]);
 
-    return this.ordersModel.find(query).exec();
+  if (!result) {
+    throw new NotFoundException('Order not found');
+  }
+
+  return result
   }
 
 async findOne(id: string): Promise<any> {
