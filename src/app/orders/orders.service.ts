@@ -61,7 +61,9 @@ async findOne(id: string): Promise<any> {
     },
     {
       $addFields: {
-        clientNumber: '$client.clientNumber',
+        // استبدال clientId ببيانات العميل الكاملة
+        clientId: '$client',
+        // إضافة الحقول المطلوبة في المستوى الرئيسي
         clientName: {
           $concat: [
             '$client.firstName',
@@ -71,16 +73,15 @@ async findOne(id: string): Promise<any> {
             '$client.lastName',
           ],
         },
-        // إعادة ترتيب الحقول
-        __v: '$__v', // الحفاظ على قيمة __v ولكن في مكان آخر
+        clientNumber: '$client.clientNumber',
       },
     },
     {
       $project: {
-        __v: 0, // إزالة الحقل الأصلي
-        'client.__v': 0, // إزالة __v من client
-        'client.isDeleted': 0, // إزالة حقول غير ضرورية
-        'client.orderIds': 0,
+        client: 0, // إزالة حقل client المنفصل
+        'clientId.__v': 0,
+        'clientId.orderIds': 0,
+        'clientId.isDeleted': 0,
       },
     },
   ]);
@@ -89,7 +90,7 @@ async findOne(id: string): Promise<any> {
     throw new NotFoundException('Order not found');
   }
 
-  return result;
+  return result
 }
 
   async update(id: string, updateOrderDto: any): Promise<Orders> {
