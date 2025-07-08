@@ -4,11 +4,13 @@ import { OrdersService } from './orders.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
 import { Orders, OrdersSchema } from 'src/schemas/orders.schema';
+import { InvoiceModule } from '../invoice/invoice.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Orders.name, schema: OrdersSchema }]),
     AuthModule,
+    InvoiceModule
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

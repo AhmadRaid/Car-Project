@@ -1,10 +1,17 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Model } from 'mongoose';
 
 export type OrdersDocument = Orders & Document;
 
 @Schema({ timestamps: true })
 export class Orders {
+  @Prop({
+    type: String,
+    unique: true,
+    default: 'ORD-1001', // Default value, will be overridden by pre-save hook
+  })
+  orderNumber: string;
+
   @Prop({ required: true, type: Types.ObjectId, ref: 'Client' })
   clientId: Types.ObjectId;
 
@@ -134,3 +141,24 @@ export class Orders {
 }
 
 export const OrdersSchema = SchemaFactory.createForClass(Orders);
+
+// Define the OrdersModel type for type safety
+type OrdersModel = Model<OrdersDocument>;
+
+OrdersSchema.pre<OrdersDocument>('save', async function (next) {
+  if (!this.isNew || this.orderNumber !== 'ORD-1001') {
+    return next();
+  }
+
+  const model = this.constructor as OrdersModel;
+  const lastOrder = await model.findOne({}, {}, { sort: { orderNumber: -1 } });
+
+  if (lastOrder && lastOrder.orderNumber) {
+    const lastNumber = parseInt(lastOrder.orderNumber.replace('ORD-', ''), 10);
+    this.orderNumber = `ORD-${lastNumber + 1}`;
+  } else {
+    this.orderNumber = 'ORD-1001';
+  }
+
+  next();
+});

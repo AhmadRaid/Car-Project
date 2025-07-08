@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Model } from 'mongoose';
 import { ClientType } from 'src/common/enum/clientType.enum';
 
 export type ClientDocument = Client & Document;
@@ -8,6 +8,13 @@ export type ClientDocument = Client & Document;
   timestamps: true,
 })
 export class Client {
+  @Prop({
+    type: String,
+    unique: true,
+    default: 'CL-1001' 
+  })
+  clientNumber: string;
+
   @Prop({ type: String, required: true })
   firstName: string;
 
@@ -23,7 +30,7 @@ export class Client {
   @Prop({ type: String, enum: ClientType })
   clientType: ClientType;
 
-  @Prop({  })
+  @Prop({ type: String })
   phone: string;
 
   @Prop({ type: [Types.ObjectId], ref: 'Order', default: [] })
@@ -58,6 +65,23 @@ export class Client {
 
 export const ClientSchema = SchemaFactory.createForClass(Client);
 
-// // Add virtuals to ensure they're included when converting to JSON
-// ClientSchema.set('toJSON', { virtuals: true });
-// ClientSchema.set('toObject', { virtuals: true });
+// Define the ClientModel type for type safety
+type ClientModel = Model<ClientDocument>;
+
+ClientSchema.pre<ClientDocument>('save', async function(next) {
+  if (!this.isNew || this.clientNumber !== 'CL-1001') {
+    return next();
+  }
+  
+  const model = this.constructor as ClientModel;
+  const lastClient = await model.findOne({}, {}, { sort: { clientNumber: -1 } });
+  
+  if (lastClient && lastClient.clientNumber) {
+    const lastNumber = parseInt(lastClient.clientNumber.replace('CL-', ''), 10);
+    this.clientNumber = `CL-${lastNumber + 1}`;
+  } else {
+    this.clientNumber = 'CL-1001';
+  }
+  
+  next();
+});
