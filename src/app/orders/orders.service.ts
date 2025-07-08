@@ -32,9 +32,6 @@ export class OrdersService {
       },
     },
     {
-      $limit: 1,
-    },
-    {
       $lookup: {
         from: 'clients',
         localField: 'clientId',
@@ -46,31 +43,6 @@ export class OrdersService {
       $unwind: {
         path: '$client',
         preserveNullAndEmptyArrays: true,
-      },
-    },
-    {
-      $addFields: {
-        // استبدال clientId ببيانات العميل الكاملة
-        clientId: '$client',
-        // إضافة الحقول المطلوبة في المستوى الرئيسي
-        clientName: {
-          $concat: [
-            '$client.firstName',
-            ' ',
-            '$client.middleName',
-            ' ',
-            '$client.lastName',
-          ],
-        },
-        clientNumber: '$client.clientNumber',
-      },
-    },
-    {
-      $project: {
-        client: 0, // إزالة حقل client المنفصل
-        'clientId.__v': 0,
-        'clientId.orderIds': 0,
-        'clientId.isDeleted': 0,
       },
     },
   ]);
