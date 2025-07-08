@@ -77,6 +77,16 @@ export class ServiceDto {
   @IsOptional()
   servicePrice?: number;
 
+  
+  @IsString()
+  @IsOptional()
+  protectionColor?: number;
+
+  
+  @IsString()
+  @IsOptional()
+  originalCarColor?: number;
+
   @IsDate()
   @IsOptional()
   @Type(() => Date)

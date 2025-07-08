@@ -28,129 +28,199 @@ export class ClientService {
   ): Promise<{ client: ClientDocument; order?: OrdersDocument }> {
     try {
       // 1. Create or find client
-      let client = await this.clientModel.findOne({
-        phone: createClientDto.phone,
-      });
+      const client = await this.findOrCreateClient(createClientDto);
 
-      if (!client) {
-        client = await this.clientModel.create({
-          firstName: createClientDto.firstName,
-          middleName: createClientDto.middleName,
-          lastName: createClientDto.lastName,
-          email: createClientDto.email,
-          phone: createClientDto.phone,
-          clientType: createClientDto.clientType,
-          branch: createClientDto.branch,
-        });
-      }
-      // 2. Check if we should create an order
-      const hasCarFields =
-        createClientDto.carType &&
-        createClientDto.carModel &&
-        createClientDto.carColor &&
-        createClientDto.carPlateNumber &&
-        createClientDto.carManufacturer &&
-        createClientDto.carSize;
-
-      let createdOrder: OrdersDocument | null = null;
-      let preparedServices;
-
-      if (
-        hasCarFields &&
-        createClientDto.services &&
-        createClientDto.services.length > 0
-      ) {
-        // Prepare services
-
-
-         preparedServices = createClientDto.services.map((service) => ({
-          serviceType: service.serviceType,
-          dealDetails: service.dealDetails,
-          servicePrice: service.servicePrice,
-          guarantee: {
-            typeGuarantee: service.guarantee.typeGuarantee,
-            startDate: new Date(service.guarantee.startDate),
-            endDate: new Date(service.guarantee.endDate),
-            terms: service.guarantee.terms,
-            notes: service.guarantee.notes,
-            status: 'inactive',
-            accepted: false,
-          },
-          // Add service-specific fields here
-        }));
-      }
-      if (hasCarFields) {
-        // Create order
-        createdOrder = await this.ordersModel.create({
-          clientId: client._id,
-          carType: createClientDto.carType,
-          carModel: createClientDto.carModel,
-          carColor: createClientDto.carColor,
-          carPlateNumber: createClientDto.carPlateNumber,
-          carManufacturer: createClientDto.carManufacturer,
-          carSize: createClientDto.carSize,
-          services: preparedServices || [],
-        });
-
-        // Update client with order reference
-        await this.clientModel.findByIdAndUpdate(
-          client._id,
-          { $push: { orderIds: createdOrder._id } },
-          { new: true },
-        );
-      }
+      // 2. Create order if needed
+      const order = await this.maybeCreateOrder(client, createClientDto);
 
       return {
         client: client.toObject(),
-        order: createdOrder?.toObject(),
+        order: order?.toObject(),
       };
     } catch (error) {
-      console.error('Error creating order:', error);
+      this.handleCreateClientError(error);
+    }
+  }
 
-      // Handle specific error types
-      if (error.code === 11000) {
-        throw new ConflictException(
-          'Client with this phone number already exists',
-        );
-      }
+  private async findOrCreateClient(
+    createClientDto: createClientAndOrderDto,
+  ): Promise<ClientDocument> {
+    const existingClient = await this.clientModel.findOne({
+      phone: createClientDto.phone,
+    });
 
-      if (error.name === 'ValidationError') {
-        // Handle Mongoose validation errors
-        const errorMessages = Object.values(error.errors).map(
-          (err: any) => err.message,
-        );
-        throw new BadRequestException(
-          `Validation failed: ${errorMessages.join(', ')}`,
-        );
-      }
+    if (existingClient) {
+      return existingClient;
+    }
 
-      if (error.name === 'CastError') {
-        // Handle invalid data type errors
-        throw new BadRequestException(
-          `Invalid data type for field: ${error.path}`,
-        );
-      }
+    return await this.clientModel.create({
+      firstName: createClientDto.firstName,
+      middleName: createClientDto.middleName,
+      lastName: createClientDto.lastName,
+      email: createClientDto.email,
+      phone: createClientDto.phone,
+      clientType: createClientDto.clientType,
+      branch: createClientDto.branch,
+    });
+  }
 
-      if (error instanceof Error && error.message.includes('required')) {
-        // Handle missing required fields
-        throw new BadRequestException(error.message);
-      }
+  private async maybeCreateOrder(
+    client: ClientDocument,
+    createClientDto: createClientAndOrderDto,
+  ): Promise<OrdersDocument | null> {
+    if (!this.shouldCreateOrder(createClientDto)) {
+      return null;
+    }
 
-      // For date validation errors
-      if (
-        error.message.includes('invalid date') ||
-        error.message.includes('date format')
-      ) {
-        throw new BadRequestException(
-          'Invalid date format. Please use YYYY-MM-DD format',
-        );
-      }
+    const preparedServices = this.prepareServices(createClientDto.services);
+    const orderData = this.buildOrderData(
+      client,
+      createClientDto,
+      preparedServices,
+    );
 
-      // General error as last resort
-      throw new BadRequestException(
-        `Failed to create order: ${error.message || 'Unknown error occurred'}`,
+    const createdOrder = await this.ordersModel.create(orderData);
+
+    // Update client with order reference
+    await this.clientModel.findByIdAndUpdate(
+      client._id,
+      { $push: { orderIds: createdOrder._id } },
+      { new: true },
+    );
+
+    return createdOrder;
+  }
+
+  private shouldCreateOrder(createClientDto: createClientAndOrderDto): boolean {
+    const requiredCarFields = [
+      createClientDto.carType,
+      createClientDto.carModel,
+      createClientDto.carColor,
+      createClientDto.carPlateNumber,
+      createClientDto.carManufacturer,
+      createClientDto.carSize,
+    ];
+
+    return (
+      requiredCarFields.every((field) => !!field) &&
+      createClientDto.services?.length > 0
+    );
+  }
+
+  private prepareServices(services?: ServiceDto[]): any[] {
+    if (!services) return [];
+
+    return services.map((service) => {
+      const preparedService: any = {
+        serviceType: service.serviceType,
+        dealDetails: service.dealDetails,
+        servicePrice: service.servicePrice,
+        guarantee: {
+          typeGuarantee: service.guarantee.typeGuarantee,
+          startDate: new Date(service.guarantee.startDate),
+          endDate: new Date(service.guarantee.endDate),
+          terms: service.guarantee.terms,
+          notes: service.guarantee.notes,
+          status: 'inactive',
+          accepted: false,
+        },
+      };
+
+      // Add service-specific fields
+      this.addServiceSpecificFields(preparedService, service);
+
+      return preparedService;
+    });
+  }
+
+  private addServiceSpecificFields(
+    preparedService: any,
+    service: ServiceDto,
+  ): void {
+    switch (service.serviceType) {
+      case 'protection':
+        preparedService.protectionFinish = service.protectionFinish;
+        preparedService.protectionSize = service.protectionSize;
+        preparedService.protectionCoverage = service.protectionCoverage;
+        preparedService.originalCarColor = service.originalCarColor;
+        preparedService.protectionColor = service.protectionColor;
+        break;
+
+      case 'insulator':
+        preparedService.insulatorType = service.insulatorType;
+        preparedService.insulatorCoverage = service.insulatorCoverage;
+        break;
+
+      case 'polish':
+        preparedService.polishType = service.polishType;
+        preparedService.polishSubType = service.polishSubType;
+        break;
+
+      case 'additions':
+        preparedService.additionType = service.additionType;
+        preparedService.washScope = service.washScope;
+        break;
+    }
+  }
+
+  private buildOrderData(
+    client: ClientDocument,
+    createClientDto: createClientAndOrderDto,
+    services: any[],
+  ): any {
+    return {
+      clientId: client._id,
+      carType: createClientDto.carType,
+      carModel: createClientDto.carModel,
+      carColor: createClientDto.carColor,
+      carPlateNumber: createClientDto.carPlateNumber,
+      carManufacturer: createClientDto.carManufacturer,
+      carSize: createClientDto.carSize,
+      services,
+    };
+  }
+
+  private handleCreateClientError(error: any): never {
+    console.error('Error in createClient:', error);
+
+    if (error.code === 11000) {
+      throw new ConflictException(
+        'Client with this phone number already exists',
       );
     }
+
+    if (error.name === 'ValidationError') {
+      const errorMessages = Object.values(error.errors).map(
+        (err: any) => err.message,
+      );
+      throw new BadRequestException(
+        `Validation failed: ${errorMessages.join(', ')}`,
+      );
+    }
+
+    if (error.name === 'CastError') {
+      throw new BadRequestException(
+        `Invalid data type for field: ${error.path}`,
+      );
+    }
+
+    if (error instanceof Error && error.message.includes('required')) {
+      throw new BadRequestException(error.message);
+    }
+
+    if (
+      error.message?.includes('invalid date') ||
+      error.message?.includes('date format')
+    ) {
+      throw new BadRequestException(
+        'Invalid date format. Please use YYYY-MM-DD format',
+      );
+    }
+
+    throw new InternalServerErrorException(
+      error.message ||
+        'An unexpected error occurred while creating client and order',
+    );
   }
 
   async addServicesToOrder(addServicesDto: AddServicesToOrderDto) {
@@ -170,8 +240,6 @@ export class ClientService {
       if (!order) {
         throw new NotFoundException('Order not found');
       }
-
-      
 
       // Validate services array
       if (
@@ -290,34 +358,7 @@ export class ClientService {
     }
   }
 
-  private addServiceSpecificFields(service: ServiceDto, serviceData: any) {
-    switch (service.serviceType) {
-      case 'protection':
-        if (service.protectionFinish)
-          serviceData.protectionFinish = service.protectionFinish;
-        if (service.protectionSize)
-          serviceData.protectionSize = service.protectionSize;
-        if (service.protectionCoverage)
-          serviceData.protectionCoverage = service.protectionCoverage;
-        break;
-      case 'insulator':
-        if (service.insulatorType)
-          serviceData.insulatorType = service.insulatorType;
-        if (service.insulatorCoverage)
-          serviceData.insulatorCoverage = service.insulatorCoverage;
-        break;
-      case 'polish':
-        if (service.polishType) serviceData.polishType = service.polishType;
-        if (service.polishSubType)
-          serviceData.polishSubType = service.polishSubType;
-        break;
-      case 'additions':
-        if (service.additionType)
-          serviceData.additionType = service.additionType;
-        if (service.washScope) serviceData.washScope = service.washScope;
-        break;
-    }
-  }
+ 
 
   async getClientWithOrders(clientId: string): Promise<any> {
     try {
