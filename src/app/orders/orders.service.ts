@@ -30,21 +30,61 @@ export class OrdersService {
     return this.ordersModel.find(query).exec();
   }
 
-  async findOne(id: string): Promise<Orders> {
+  async findOne(id: string): Promise<any> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid order ID');
     }
 
-    const order = await this.ordersModel.findOne({
-      _id: new Types.ObjectId(id),
-      isDeleted: false,
-    });
+    const [result] = await this.ordersModel.aggregate([
+      {
+        $match: {
+          _id: new Types.ObjectId(id),
+          isDeleted: false,
+        },
+      },
+      {
+        $limit: 1,
+      },
+      {
+        $lookup: {
+          from: 'clients',
+          localField: 'clientId',
+          foreignField: '_id',
+          as: 'client',
+        },
+      },
+      {
+        $unwind: {
+          path: '$client',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          clientNumber: '$client.clientNumber',
+          clientName: {
+            $concat: [
+              '$client.firstName',
+              ' ',
+              '$client.middleName',
+              ' ',
+              '$client.lastName',
+            ],
+          },
+        },
+      },
+      {
+        $project: {
+          client: 0, // Remove the full client object if you only need specific fields
+        },
+      },
+    ]);
 
-    if (!order) {
+    if (!result) {
       throw new NotFoundException('Order not found');
     }
 
-    return order;
+    return result;
   }
 
   async update(id: string, updateOrderDto: any): Promise<Orders> {
