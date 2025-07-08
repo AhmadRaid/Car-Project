@@ -75,7 +75,9 @@ export class OrdersService {
       },
       {
         $project: {
-          client: 0, // Remove the full client object if you only need specific fields
+          client: 0,
+          __v:0,
+          isDeleted:0
         },
       },
     ]);
