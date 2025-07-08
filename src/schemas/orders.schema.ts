@@ -50,6 +50,8 @@ export class Orders {
           enum: ['polish', 'protection', 'insulator', 'additions'],
         },
         dealDetails: { type: String },
+        originalCarColor: { type: String },
+        protectionColor: { type: String },
         protectionFinish: {
           type: String,
           enum: ['glossy', 'matte', 'colored'],
