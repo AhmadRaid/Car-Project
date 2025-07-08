@@ -30,64 +30,67 @@ export class OrdersService {
     return this.ordersModel.find(query).exec();
   }
 
-  async findOne(id: string): Promise<any> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid order ID');
-    }
-
-    const [result] = await this.ordersModel.aggregate([
-      {
-        $match: {
-          _id: new Types.ObjectId(id),
-          isDeleted: false,
-        },
-      },
-      {
-        $limit: 1,
-      },
-      {
-        $lookup: {
-          from: 'clients',
-          localField: 'clientId',
-          foreignField: '_id',
-          as: 'client',
-        },
-      },
-      {
-        $unwind: {
-          path: '$client',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $addFields: {
-          clientNumber: '$client.clientNumber',
-          clientName: {
-            $concat: [
-              '$client.firstName',
-              ' ',
-              '$client.middleName',
-              ' ',
-              '$client.lastName',
-            ],
-          },
-        },
-      },
-      {
-        $project: {
-          client: 0,
-          __v:0,
-          isDeleted:0
-        },
-      },
-    ]);
-
-    if (!result) {
-      throw new NotFoundException('Order not found');
-    }
-
-    return result;
+async findOne(id: string): Promise<any> {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new BadRequestException('Invalid order ID');
   }
+
+  const [result] = await this.ordersModel.aggregate([
+    {
+      $match: {
+        _id: new Types.ObjectId(id),
+        isDeleted: false,
+      },
+    },
+    {
+      $limit: 1,
+    },
+    {
+      $lookup: {
+        from: 'clients',
+        localField: 'clientId',
+        foreignField: '_id',
+        as: 'client',
+      },
+    },
+    {
+      $unwind: {
+        path: '$client',
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $addFields: {
+        clientNumber: '$client.clientNumber',
+        clientName: {
+          $concat: [
+            '$client.firstName',
+            ' ',
+            '$client.middleName',
+            ' ',
+            '$client.lastName',
+          ],
+        },
+        // إعادة ترتيب الحقول
+        __v: '$__v', // الحفاظ على قيمة __v ولكن في مكان آخر
+      },
+    },
+    {
+      $project: {
+        __v: 0, // إزالة الحقل الأصلي
+        'client.__v': 0, // إزالة __v من client
+        'client.isDeleted': 0, // إزالة حقول غير ضرورية
+        'client.orderIds': 0,
+      },
+    },
+  ]);
+
+  if (!result) {
+    throw new NotFoundException('Order not found');
+  }
+
+  return result;
+}
 
   async update(id: string, updateOrderDto: any): Promise<Orders> {
     if (!Types.ObjectId.isValid(id)) {
