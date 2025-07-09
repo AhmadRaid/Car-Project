@@ -29,6 +29,11 @@ export class InvoiceController {
     return this.invoiceService.findAll();
   }
 
+  @Get('order/:orderId')
+  async findInvoiceByOrderId(@Param('orderId') orderId: string) {
+    return this.invoiceService.findInvoiceByOrderId(orderId);
+  }
+
   @Get(':invoiceId')
   async findOne(@Param('invoiceId') invoiceId: string) {
     return this.invoiceService.findOne(invoiceId);

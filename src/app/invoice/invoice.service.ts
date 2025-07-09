@@ -45,6 +45,173 @@ export class InvoiceService {
       .exec();
   }
 
+  async findInvoiceByOrderId(orderId: string) {
+    const [invoice] = await this.invoiceModel.aggregate([
+      {
+        $match: {
+          orderId: new Types.ObjectId(orderId),
+          isDeleted: false,
+        },
+      },
+      {
+        $lookup: {
+          from: 'clients',
+          localField: 'clientId',
+          foreignField: '_id',
+          as: 'client',
+          pipeline: [
+            {
+              $project: {
+                firstName: 1,
+                middleName: 1,
+                lastName: 1,
+                clientNumber: 1,
+                phone: 1,
+                email: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'orderId',
+          foreignField: '_id',
+          as: 'order',
+          pipeline: [
+            {
+              $lookup: {
+                from: 'invoices',
+                localField: 'invoiceId',
+                foreignField: '_id',
+                as: 'invoice',
+              },
+            },
+            {
+              $unwind: {
+                path: '$invoice',
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $project: {
+                orderNumber: 1,
+                carType: 1,
+                carModel: 1,
+                carColor: 1,
+                carPlateNumber: 1,
+                carManufacturer: 1,
+                carSize: 1,
+                services: 1,
+                createdAt: 1,
+                invoiceId: 1,
+                invoiceNumber: '$invoice.invoiceNumber',
+              },
+            },
+          ],
+        },
+      },
+      {
+        $unwind: '$client',
+      },
+      {
+        $unwind: '$order',
+      },
+      {
+        $addFields: {
+          'order.services': {
+            $map: {
+              input: '$order.services',
+              as: 'service',
+              in: {
+                $mergeObjects: [
+                  '$$service',
+                  {
+                    serviceTypeArabic: {
+                      $switch: {
+                        branches: [
+                          { case: { $eq: ['$$service.serviceType', 'protection'] }, then: 'حماية' },
+                          { case: { $eq: ['$$service.serviceType', 'polish'] }, then: 'تلميع' },
+                          { case: { $eq: ['$$service.serviceType', 'insulator'] }, then: 'عازل حراري' },
+                          { case: { $eq: ['$$service.serviceType', 'additions'] }, then: 'إضافات' },
+                        ],
+                        default: '$$service.serviceType'
+                      }
+                    },
+                    guaranteePeriod: {
+                      $arrayElemAt: [
+                        {
+                          $split: ['$$service.guarantee.typeGuarantee', ' ']
+                        },
+                        0
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          formattedInvoiceDate: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: '$invoiceDate',
+            },
+          },
+          formattedOrderDate: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: '$order.createdAt',
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          invoiceNumber: 1,
+          invoiceDate: '$formattedInvoiceDate',
+          subtotal: 1,
+          taxRate: 1,
+          taxAmount: 1,
+          totalAmount: 1,
+          notes: 1,
+          client: 1,
+          order: {
+            orderNumber: 1,
+            carType: 1,
+            carModel: 1,
+            carColor: 1,
+            carPlateNumber: 1,
+            carManufacturer: 1,
+            carSize: 1,
+            services: 1,
+            orderDate: '$formattedOrderDate',
+            invoiceNumber: '$order.invoiceNumber',
+          },
+        },
+      },
+    ]);
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found for this order');
+    }
+
+    // تحويل تاريخ الضمان لكل خدمة
+    invoice.order.services = invoice.order.services.map(service => {
+      return {
+        ...service,
+        guarantee: {
+          ...service.guarantee,
+          startDate: new Date(service.guarantee.startDate).toLocaleDateString('ar-SA'),
+          endDate: new Date(service.guarantee.endDate).toLocaleDateString('ar-SA'),
+        }
+      };
+    });
+
+    return invoice;
+}
+
   async findOne(invoiceId: string) {
     const [invoice] = await this.invoiceModel.aggregate([
       {
