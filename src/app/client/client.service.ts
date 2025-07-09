@@ -15,33 +15,178 @@ import { createClientAndOrderDto } from './dto/create-client.dto';
 import { ServiceDto } from './dto/service.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { AddServicesToOrderDto } from '../orders/dto/add-service.dto';
+import { Invoice, InvoiceDocument } from 'src/schemas/invoice.schema';
 
 @Injectable()
 export class ClientService {
   constructor(
     @InjectModel(Client.name) private clientModel: Model<ClientDocument>,
     @InjectModel(Orders.name) private ordersModel: Model<OrdersDocument>,
+    @InjectModel(Invoice.name) private invoiceModel: Model<InvoiceDocument>,
   ) {}
 
-  async createClient(
-    createClientDto: createClientAndOrderDto,
-  ): Promise<{ client: ClientDocument; order?: OrdersDocument }> {
+  /**
+   * إنشاء عميل جديد مع طلب وفاتورة إذا لزم الأمر
+   * @param createClientDto بيانات إنشاء العميل والطلب
+   * @returns كائن يحتوي على العميل والطلب والفاتورة (إذا تم إنشاؤها)
+   */
+  async createClient(createClientDto: createClientAndOrderDto): Promise<{
+    client: ClientDocument;
+    order?: OrdersDocument;
+    invoice?: InvoiceDocument;
+  }> {
     try {
-      // 1. Create or find client
+      // التحقق من صحة البيانات المدخلة
+      this.validateCreateClientDto(createClientDto);
+
+      // 1. إنشاء أو العثور على العميل
       const client = await this.findOrCreateClient(createClientDto);
 
-      // 2. Create order if needed
+      // 2. إنشاء الطلب إذا لزم الأمر
       const order = await this.maybeCreateOrder(client, createClientDto);
+
+      // 3. إنشاء الفاتورة إذا تم إنشاء طلب
+      let invoice = null;
+      if (order) {
+        invoice = await this.createInvoice(client, order, createClientDto);
+
+        // تحديث الطلب برقم الفاتورة
+        await this.ordersModel.findByIdAndUpdate(
+          order._id,
+          { $set: { invoiceId: invoice._id } },
+          { new: true },
+        );
+      }
 
       return {
         client: client.toObject(),
         order: order?.toObject(),
+        invoice: invoice?.toObject(),
       };
     } catch (error) {
       this.handleCreateClientError(error);
     }
   }
 
+  /**
+   * التحقق من صحة بيانات إنشاء العميل
+   * @param dto بيانات إنشاء العميل
+   * @throws BadRequestException إذا كانت البيانات غير صالحة
+   */
+  private validateCreateClientDto(dto: createClientAndOrderDto): void {
+    // التحقق من وجود بيانات العميل الأساسية
+    if (!dto.phone || !dto.firstName || !dto.lastName) {
+      throw new BadRequestException(
+        'Phone, first name and last name are required',
+      );
+    }
+
+    // إذا كانت هناك خدمات، يجب التحقق من بيانات السيارة
+    if (dto.services && dto.services.length > 0) {
+      const requiredCarFields = [
+        'carType',
+        'carModel',
+        'carColor',
+        'carPlateNumber',
+      ];
+
+      const missingFields = requiredCarFields.filter((field) => !dto[field]);
+      if (missingFields.length > 0) {
+        throw new BadRequestException(
+          `Car information is required when adding services. Missing fields: ${missingFields.join(', ')}`,
+        );
+      }
+
+      // التحقق من صحة كل خدمة
+      dto.services.forEach((service) => {
+        if (!service.serviceType) {
+          throw new BadRequestException(
+            'Service type is required for each service',
+          );
+        }
+
+        // if (service.servicePrice === undefined || service.servicePrice < 0) {
+        //   throw new BadRequestException(
+        //     'Valid service price is required for each service',
+        //   );
+        // }
+
+        // التحقق من تاريخ الضمان
+        if (service.guarantee) {
+          const startDate = new Date(service.guarantee.startDate);
+          const endDate = new Date(service.guarantee.endDate);
+
+          if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            throw new BadRequestException('Invalid guarantee date format');
+          }
+
+          if (startDate > endDate) {
+            throw new BadRequestException(
+              'Guarantee start date cannot be after end date',
+            );
+          }
+        }
+      });
+    }
+  }
+
+  /**
+   * إنشاء فاتورة جديدة
+   * @param client بيانات العميل
+   * @param order بيانات الطلب
+   * @param createClientDto بيانات إنشاء العميل
+   * @returns وثيقة الفاتورة
+   */
+  private async createInvoice(
+    client: ClientDocument,
+    order: OrdersDocument,
+    createClientDto: createClientAndOrderDto,
+  ): Promise<InvoiceDocument> {
+    try {
+      // حساب المبالغ المالية
+      const subtotal = this.calculateSubtotal(createClientDto.services);
+      const taxRate = 5; // يمكن جعلها قابلة للتخصيص
+      const taxAmount = subtotal * (taxRate / 100);
+      const totalAmount = subtotal + taxAmount;
+
+      // إنشاء الفاتورة
+      const invoice = await this.invoiceModel.create({
+        clientId: client._id,
+        orderId: order._id,
+        subtotal,
+        taxRate,
+        taxAmount,
+        totalAmount,
+        discount: 0,
+        finalAmount: totalAmount - 0,
+        notes: createClientDto.invoiceNotes || '',
+        status: 'pending',
+      });
+
+      return invoice;
+    } catch (error) {
+      console.error('Failed to create invoice:', error);
+      throw new InternalServerErrorException('Failed to create invoice');
+    }
+  }
+
+  /**
+   * حساب المجموع الفرعي للخدمات
+   * @param services قائمة الخدمات
+   * @returns المجموع الفرعي
+   */
+  private calculateSubtotal(services: ServiceDto[]): number {
+    return services.reduce(
+      (total, service) => total + (service.servicePrice || 0),
+      0,
+    );
+  }
+
+  /**
+   * البحث عن عميل موجود أو إنشاء عميل جديد
+   * @param createClientDto بيانات إنشاء العميل
+   * @returns وثيقة العميل
+   */
   private async findOrCreateClient(
     createClientDto: createClientAndOrderDto,
   ): Promise<ClientDocument> {
@@ -64,6 +209,12 @@ export class ClientService {
     });
   }
 
+  /**
+   * إنشاء طلب جديد إذا كانت البيانات كافية
+   * @param client بيانات العميل
+   * @param createClientDto بيانات إنشاء العميل
+   * @returns وثيقة الطلب أو null إذا لم يتم إنشاء طلب
+   */
   private async maybeCreateOrder(
     client: ClientDocument,
     createClientDto: createClientAndOrderDto,
@@ -81,7 +232,7 @@ export class ClientService {
 
     const createdOrder = await this.ordersModel.create(orderData);
 
-    // Update client with order reference
+    // تحديث العميل بإضافة معرف الطلب
     await this.clientModel.findByIdAndUpdate(
       client._id,
       { $push: { orderIds: createdOrder._id } },
@@ -91,6 +242,11 @@ export class ClientService {
     return createdOrder;
   }
 
+  /**
+   * تحديد ما إذا كان يجب إنشاء طلب
+   * @param createClientDto بيانات إنشاء العميل
+   * @returns true إذا كان يجب إنشاء طلب، false إذا لا
+   */
   private shouldCreateOrder(createClientDto: createClientAndOrderDto): boolean {
     const requiredCarFields = [
       createClientDto.carType,
@@ -107,6 +263,11 @@ export class ClientService {
     );
   }
 
+  /**
+   * تحضير بيانات الخدمات للطلب
+   * @param services قائمة الخدمات
+   * @returns قائمة الخدمات المحضرة
+   */
   private prepareServices(services?: ServiceDto[]): any[] {
     if (!services) return [];
 
@@ -126,13 +287,18 @@ export class ClientService {
         },
       };
 
-      // Add service-specific fields
+      // إضافة حقول خاصة بالخدمة
       this.addServiceSpecificFields(preparedService, service);
 
       return preparedService;
     });
   }
 
+  /**
+   * إضافة حقول خاصة بالخدمة
+   * @param preparedService كائن الخدمة المحضر
+   * @param service بيانات الخدمة الأصلية
+   */
   private addServiceSpecificFields(
     preparedService: any,
     service: ServiceDto,
@@ -163,6 +329,13 @@ export class ClientService {
     }
   }
 
+  /**
+   * بناء بيانات الطلب
+   * @param client بيانات العميل
+   * @param createClientDto بيانات إنشاء العميل
+   * @param services قائمة الخدمات المحضرة
+   * @returns كائن يحتوي على بيانات الطلب
+   */
   private buildOrderData(
     client: ClientDocument,
     createClientDto: createClientAndOrderDto,
@@ -180,6 +353,11 @@ export class ClientService {
     };
   }
 
+  /**
+   * معالجة أخطاء إنشاء العميل
+   * @param error الخطأ الذي حدث
+   * @throws استثناء مناسب حسب نوع الخطأ
+   */
   private handleCreateClientError(error: any): never {
     console.error('Error in createClient:', error);
 
@@ -222,6 +400,9 @@ export class ClientService {
         'An unexpected error occurred while creating client and order',
     );
   }
+
+  // باقي الدوال الموجودة في الخدمة (addServicesToOrder, getClientWithOrders, getClients, updateClient, deleteClient, findOne)
+  // ... [يتم الحفاظ على الدوال الأخرى كما هي بدون تغيير]
 
   async addServicesToOrder(addServicesDto: AddServicesToOrderDto) {
     // Validate input
@@ -357,8 +538,6 @@ export class ClientService {
       );
     }
   }
-
- 
 
   async getClientWithOrders(clientId: string): Promise<any> {
     try {
@@ -643,5 +822,20 @@ export class ClientService {
     }
 
     return { message: 'Client is deleted' };
+  }
+
+  async findOne(id: string) {
+    const client = await this.clientModel
+      .findOne({
+        _id: id,
+        isDeleted: false,
+      })
+      .exec();
+
+    if (!client) {
+      throw new NotFoundException('Client not found');
+    }
+
+    return client;
   }
 }

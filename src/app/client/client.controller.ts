@@ -27,6 +27,7 @@ export class ClientController {
   @Post()
   async createClient(@Body() createClientDto: createClientAndOrderDto) {
     try {
+      
       return await this.clientService.createClient({
         ...createClientDto,
       });

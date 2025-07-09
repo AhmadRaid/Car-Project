@@ -1,62 +1,61 @@
-// invoice.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Model, Types } from 'mongoose';
 
 export type InvoiceDocument = Invoice & Document;
 
 @Schema({ timestamps: true })
 export class Invoice {
-  @Prop({ required: true, type: Types.ObjectId, ref: 'Client' })
-  clientId: Types.ObjectId;
-
-  @Prop({ required: true, type: Types.ObjectId, ref: 'Orders' })
-  orderId: Types.ObjectId;
-
-  @Prop({ required: true, type: String })
+  @Prop({
+    type: String,
+    unique: true,
+    default: 'INV-1001'
+  })
   invoiceNumber: string;
 
-  @Prop({ required: true, type: Date })
-  issueDate: Date;
+  @Prop({ type: Date, default: Date.now })
+  invoiceDate: Date;
 
-  @Prop({ required: true, type: String })
-  phone: string;
+  @Prop({ type: Types.ObjectId, ref: 'Client', required: true })
+  clientId: Types.ObjectId;
 
-  @Prop({ required: true, type: String })
-  carType: string;
+  @Prop({ type: Types.ObjectId, ref: 'Orders', required: true })
+  orderId: Types.ObjectId;
 
-  @Prop({ required: true, type: String })
-  carModel: string;
-
-  @Prop({ required: true, type: String })
-  carPlateNumber: string;
-
-  @Prop({
-    type: [
-      {
-        serviceType: { type: String, required: true },
-        description: { type: String, required: true },
-        price: { type: Number, required: true },
-      },
-    ],
-    required: true,
-  })
-  services: Array<{
-    serviceType: string;
-    description: string;
-    price: number;
-  }>;
-
-  @Prop({ required: true, type: Number })
+  @Prop({ type: Number, required: true })
   subtotal: number;
 
-  @Prop({ required: true, type: Number, default: 0.05 }) // 5% ضريبة
+  @Prop({ type: Number, default: 15 }) // 15% ضريبة
   taxRate: number;
 
-  @Prop({ required: true, type: Number })
+  @Prop({ type: Number, required: true })
   taxAmount: number;
 
-  @Prop({ required: true, type: Number })
+  @Prop({ type: Number, required: true })
   totalAmount: number;
+
+  @Prop({ type: String })
+  notes: string;
+
+  @Prop({ type: Boolean, default: false })
+  isDeleted: boolean;
 }
 
 export const InvoiceSchema = SchemaFactory.createForClass(Invoice);
+
+InvoiceSchema.pre<InvoiceDocument>('save', async function(next) {
+  if (!this.isNew || this.invoiceNumber !== 'INV-1001') {
+    return next();
+  }
+  
+  const model = this.constructor as Model<InvoiceDocument>;
+  const lastInvoice = await model.findOne({}, {}, { sort: { invoiceNumber: -1 } });
+  
+  if (lastInvoice && lastInvoice.invoiceNumber) {
+    const lastNumber = parseInt(lastInvoice.invoiceNumber.replace('INV-', ''), 10);
+    this.invoiceNumber = `INV-${lastNumber + 1}`;
+  } else {
+    this.invoiceNumber = 'INV-1001';
+  }
+  
+  next();
+});

@@ -15,6 +15,9 @@ export class Orders {
   @Prop({ required: true, type: Types.ObjectId, ref: 'Client' })
   clientId: Types.ObjectId;
 
+  @Prop({  type: Types.ObjectId, ref: 'Invoice' })
+  invoiceId: Types.ObjectId;
+
   @Prop({ required: true, type: String })
   carType: string;
 

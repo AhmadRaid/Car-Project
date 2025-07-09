@@ -1,22 +1,4 @@
-import { IsNotEmpty, IsString, IsDate, IsArray, IsNumber, IsOptional, IsEnum } from 'class-validator';
-
-class InvoiceItemDto {
-  @IsNotEmpty()
-  @IsString()
-  description: string;
-
-  @IsOptional()
-  @IsNumber()
-  quantity?: number;
-
-  @IsNotEmpty()
-  @IsNumber()
-  unitPrice: number;
-
-  @IsOptional()
-  @IsNumber()
-  taxRate?: number;
-}
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateInvoiceDto {
   @IsNotEmpty()
@@ -28,28 +10,20 @@ export class CreateInvoiceDto {
   orderId: string;
 
   @IsNotEmpty()
-  @IsDate()
-  issueDate: Date;
-
-  @IsNotEmpty()
-  @IsDate()
-  dueDate: Date;
-
-  @IsNotEmpty()
-  @IsArray()
-  items: InvoiceItemDto[];
+  @IsNumber()
+  subtotal: number;
 
   @IsOptional()
   @IsNumber()
-  discount?: number;
+  taxRate?: number;
 
-//   @IsOptional()
-//   @IsEnum(InvoiceStatus)
-//   status?: InvoiceStatus;
+  @IsNotEmpty()
+  @IsNumber()
+  taxAmount: number;
 
-//   @IsOptional()
-//   @IsEnum(PaymentMethod)
-//   paymentMethod?: PaymentMethod;
+  @IsNotEmpty()
+  @IsNumber()
+  totalAmount: number;
 
   @IsOptional()
   @IsString()

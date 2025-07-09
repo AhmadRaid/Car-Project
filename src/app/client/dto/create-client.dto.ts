@@ -93,4 +93,7 @@ export class createClientAndOrderDto {
   @IsArray({ message: 'الرجاء ارسال حقول كمصفوفة' })
   @IsOptional()
   services?: ServiceDto[];
+
+  @IsOptional()
+  invoiceNotes?: string;
 }
