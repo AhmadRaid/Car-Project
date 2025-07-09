@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { ClientService } from '../client/client.service';
 import { OrdersService } from '../orders/orders.service';
 import { Invoice } from 'src/schemas/invoice.schema';
@@ -45,11 +45,73 @@ export class InvoiceService {
       .exec();
   }
 
-  async findOne(id: string) {
-    const invoice = await this.invoiceModel.findOne({
-      _id: id,
-      isDeleted: false,
-    });
+  async findOne(invoiceId: string) {
+    const [invoice] = await this.invoiceModel.aggregate([
+      {
+        $match: {
+          _id: new Types.ObjectId(invoiceId),
+          isDeleted: false,
+        },
+      },
+      {
+        $lookup: {
+          from: 'clients', // Make sure this matches your actual collection name
+          localField: 'clientId',
+          foreignField: '_id',
+          as: 'client',
+          pipeline: [
+            {
+              $project: {
+                firstName: 1,
+                middleName: 1,
+                lastName: 1,
+                clientNumber: 1,
+                phone: 1,
+              },
+            }, // Only include fields needed for PDF
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'orders', // Make sure this matches your actual collection name
+          localField: 'orderId',
+          foreignField: '_id',
+          as: 'order',
+        },
+      },
+      {
+        $unwind: '$client', // Convert client array to object
+      },
+      {
+        $unwind: '$order', // Convert order array to object
+      },
+      {
+        $addFields: {
+          formattedDate: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: '$invoiceDate',
+            },
+          },
+          // Add any other calculated fields needed for PDF
+        },
+      },
+      {
+        $project: {
+          invoiceNumber: 1,
+          invoiceDate: '$formattedDate',
+          subtotal: 1,
+          taxRate: 1,
+          taxAmount: 1,
+          totalAmount: 1,
+          notes: 1,
+          client: 1,
+          order: 1,
+          // Include any other fields needed for PDF
+        },
+      },
+    ]);
 
     if (!invoice) {
       throw new NotFoundException('Invoice not found');
@@ -131,7 +193,8 @@ export class InvoiceService {
     services: Array<{ servicePrice: number; quantity?: number }>,
   ): number {
     return services.reduce(
-      (total, service) => total + service.servicePrice * (service.quantity || 1),
+      (total, service) =>
+        total + service.servicePrice * (service.quantity || 1),
       0,
     );
   }
