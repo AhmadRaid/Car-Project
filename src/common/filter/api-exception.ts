@@ -69,7 +69,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     // ✅ ترجمة الرسائل المعروفة
     else if (this.i18n) {
-      message = (await this.i18n.t(`common.${message}`, { lang })) || message;
+      message = (await this.i18n.t(`${message}`, { lang })) || message;
     }
 
     // 💥 أخطاء الخادم

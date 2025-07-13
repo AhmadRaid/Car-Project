@@ -106,13 +106,13 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('USER.NOT_FOUND');
+      throw new UnauthorizedException("الموظف غير مسجل");
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('auth.errors.INVALIDE_INCREDENTIAL');
+      throw new UnauthorizedException("كلمة المرور غير صحيحة");
     }
 
     const payload = {

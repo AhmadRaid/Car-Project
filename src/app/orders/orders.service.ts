@@ -1,121 +1,398 @@
 import {
-  Injectable,
-  NotFoundException,
   BadRequestException,
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Orders, OrdersDocument } from 'src/schemas/orders.schema';
+import { AddServicesToOrderDto, ServiceDto } from './dto/add-service.dto';
+import { Client } from '@googlemaps/google-maps-services-js';
+import { Invoice, InvoiceDocument } from 'src/schemas/invoice.schema';
+import { ClientDocument } from 'src/schemas/client.schema';
+import { CreateOrderForExistingClientDto } from './dto/add-order';
 import { AddGuaranteeDto } from './dto/create-guarantee.dto';
-import { AddServicesToOrderDto } from './dto/add-service.dto';
 
 @Injectable()
 export class OrdersService {
   constructor(
-    @InjectModel(Orders.name) private ordersModel: Model<OrdersDocument>,
+    @InjectModel(Client.name)
+    private readonly clientModel: Model<ClientDocument>,
+    @InjectModel(Orders.name)
+    private readonly ordersModel: Model<OrdersDocument>,
+    @InjectModel(Invoice.name)
+    private readonly invoiceModel: Model<InvoiceDocument>,
   ) {}
 
-  async create(createOrderDto: any): Promise<Orders> {
+  async createOrderForExistingClient(
+    clientId: string,
+    createOrderDto: any,
+  ): Promise<{
+    order: OrdersDocument;
+    invoice?: InvoiceDocument;
+  }> {
     try {
-      const createdOrder = new this.ordersModel(createOrderDto);
-      return await createdOrder.save();
+      this.validateCreateOrderDto(createOrderDto);
+
+      const client = await this.findClientById(clientId);
+
+      const order = await this.createOrder(client, createOrderDto);
+
+      let invoice = null;
+      if (order) {
+        invoice = await this.createInvoice(client, order, createOrderDto);
+
+        await this.ordersModel.findByIdAndUpdate(
+          order._id,
+          { $set: { invoiceId: invoice._id } },
+          { new: true },
+        );
+      }
+
+      return {
+        order: order.toObject(),
+        invoice: invoice?.toObject(),
+      };
     } catch (error) {
-      throw new BadRequestException('Failed to create order');
+      this.handleCreateOrderError(error);
     }
   }
 
-  async findAll(): Promise<Orders[]> {
-  const [result] = await this.ordersModel.aggregate([
-    {
-      $match: {
-        isDeleted: false,
-      },
-    },
-    {
-      $lookup: {
-        from: 'clients',
-        localField: 'clientId',
-        foreignField: '_id',
-        as: 'client',
-      },
-    },
-    {
-      $unwind: {
-        path: '$client',
-        preserveNullAndEmptyArrays: true,
-      },
-    },
-  ]);
+  private validateCreateOrderDto(dto: CreateOrderForExistingClientDto): void {
+    // التحقق من وجود الخدمات
+    if (!dto.services || dto.services.length === 0) {
+      throw new BadRequestException('At least one service is required');
+    }
 
-  if (!result) {
-    throw new NotFoundException('Order not found');
+    const requiredCarFields = [
+      'carType',
+      'carModel',
+      'carColor',
+      'carPlateNumber',
+    ];
+
+    const missingFields = requiredCarFields.filter((field) => !dto[field]);
+    if (missingFields.length > 0) {
+      throw new BadRequestException(
+        `Car information is required when adding services. Missing fields: ${missingFields.join(', ')}`,
+      );
+    }
+
+    // التحقق من صحة كل خدمة
+    dto.services.forEach((service) => {
+      if (!service.serviceType) {
+        throw new BadRequestException(
+          'Service type is required for each service',
+        );
+      }
+
+      if (service.servicePrice === undefined || service.servicePrice < 0) {
+        throw new BadRequestException(
+          'Valid service price is required for each service',
+        );
+      }
+
+      // التحقق من تاريخ الضمان إذا كان موجوداً
+      if (service.guarantee) {
+        const startDate = new Date(service.guarantee.startDate);
+        const endDate = new Date(service.guarantee.endDate);
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+          throw new BadRequestException('Invalid guarantee date format');
+        }
+
+        if (startDate > endDate) {
+          throw new BadRequestException(
+            'Guarantee start date cannot be after end date',
+          );
+        }
+      }
+    });
   }
 
-  return result
+  private async findClientById(clientId: string): Promise<ClientDocument> {
+    const client = await this.clientModel.findById(clientId);
+    if (!client) {
+      throw new NotFoundException('Client not found');
+    }
+    return client;
   }
 
-async findOne(id: string): Promise<any> {
-  if (!Types.ObjectId.isValid(id)) {
-    throw new BadRequestException('Invalid order ID');
+  private async createOrder(
+    client: ClientDocument,
+    createOrderDto: any,
+  ): Promise<OrdersDocument> {
+    const preparedServices = this.prepareServices(createOrderDto.services);
+    const orderData = this.buildOrderData(
+      client,
+      createOrderDto,
+      preparedServices,
+    );
+
+    const createdOrder = await this.ordersModel.create(orderData);
+
+    // تحديث العميل بإضافة معرف الطلب
+    await this.clientModel.findByIdAndUpdate(
+      client._id,
+      { $push: { orderIds: createdOrder._id } },
+      { new: true },
+    );
+
+    return createdOrder;
   }
 
-  const [result] = await this.ordersModel.aggregate([
-    {
-      $match: {
-        _id: new Types.ObjectId(id),
-        isDeleted: false,
-      },
-    },
-    {
-      $limit: 1,
-    },
-    {
-      $lookup: {
-        from: 'clients',
-        localField: 'clientId',
-        foreignField: '_id',
-        as: 'client',
-      },
-    },
-    {
-      $unwind: {
-        path: '$client',
-        preserveNullAndEmptyArrays: true,
-      },
-    },
-    {
-      $addFields: {
-        // استبدال clientId ببيانات العميل الكاملة
-        clientId: '$client',
-        // إضافة الحقول المطلوبة في المستوى الرئيسي
-        clientName: {
-          $concat: [
-            '$client.firstName',
-            ' ',
-            '$client.middleName',
-            ' ',
-            '$client.lastName',
-          ],
+  private async createInvoice(
+    client: ClientDocument,
+    order: OrdersDocument,
+    createOrderDto: any,
+  ): Promise<InvoiceDocument> {
+    try {
+      // حساب المبالغ المالية
+      const subtotal = this.calculateSubtotal(createOrderDto.services);
+      const taxRate = 5; // يمكن جعلها قابلة للتخصيص
+      const taxAmount = subtotal * (taxRate / 100);
+      const totalAmount = subtotal + taxAmount;
+
+      // إنشاء الفاتورة
+      const invoice = await this.invoiceModel.create({
+        clientId: client._id,
+        orderId: order._id,
+        subtotal,
+        taxRate,
+        taxAmount,
+        totalAmount,
+        discount: 0,
+        finalAmount: totalAmount - 0,
+        notes: createOrderDto.invoiceNotes || '',
+        status: 'pending',
+      });
+
+      return invoice;
+    } catch (error) {
+      console.error('Failed to create invoice:', error);
+      throw new InternalServerErrorException('Failed to create invoice');
+    }
+  }
+
+  private calculateSubtotal(services: ServiceDto[]): number {
+    return services.reduce(
+      (total, service) => total + (service.servicePrice || 0),
+      0,
+    );
+  }
+
+  private prepareServices(services: ServiceDto[]): any[] {
+    if (!services) return [];
+
+    return services.map((service) => {
+      const preparedService: any = {
+        serviceType: service.serviceType,
+        dealDetails: service.dealDetails,
+        servicePrice: service.servicePrice,
+        guarantee: {
+          typeGuarantee: service.guarantee.typeGuarantee,
+          startDate: new Date(service.guarantee.startDate),
+          endDate: new Date(service.guarantee.endDate),
+          terms: service.guarantee.terms,
+          notes: service.guarantee.notes,
+          status: 'inactive',
+          accepted: false,
         },
-        clientNumber: '$client.clientNumber',
-      },
-    },
-    {
-      $project: {
-        client: 0, // إزالة حقل client المنفصل
-        'clientId.__v': 0,
-        'clientId.orderIds': 0,
-        'clientId.isDeleted': 0,
-      },
-    },
-  ]);
+      };
 
-  if (!result) {
-    throw new NotFoundException('Order not found');
+      // إضافة حقول خاصة بالخدمة
+      this.addServiceSpecificFields(preparedService, service);
+
+      return preparedService;
+    });
   }
 
-  return result
-}
+  private addServiceSpecificFields(
+    preparedService: any,
+    service: ServiceDto,
+  ): void {
+    switch (service.serviceType) {
+      case 'protection':
+        preparedService.protectionFinish = service.protectionFinish;
+        preparedService.protectionSize = service.protectionSize;
+        preparedService.protectionCoverage = service.protectionCoverage;
+        preparedService.originalCarColor = service.originalCarColor;
+        preparedService.protectionColor = service.protectionColor;
+        break;
+
+      case 'insulator':
+        preparedService.insulatorType = service.insulatorType;
+        preparedService.insulatorCoverage = service.insulatorCoverage;
+        break;
+
+      case 'polish':
+        preparedService.polishType = service.polishType;
+        preparedService.polishSubType = service.polishSubType;
+        break;
+
+      case 'additions':
+        preparedService.additionType = service.additionType;
+        preparedService.washScope = service.washScope;
+        break;
+    }
+  }
+
+  private buildOrderData(
+    client: ClientDocument,
+    dto: CreateOrderForExistingClientDto,
+    services: any[],
+  ): any {
+    return {
+      clientId: client._id,
+      carType: dto.carType,
+      carModel: dto.carModel,
+      carColor: dto.carColor,
+      carPlateNumber: dto.carPlateNumber,
+      carManufacturer: dto.carManufacturer,
+      carSize: dto.carSize,
+      services,
+      status: 'pending',
+      notes: dto.notes || '',
+    };
+  }
+
+  private handleCreateOrderError(error: any): never {
+    console.error('Error in createOrderForExistingClient:', error);
+
+    if (error.code === 11000) {
+      throw new ConflictException('Duplicate order data detected');
+    }
+
+    if (error.name === 'ValidationError') {
+      const errorMessages = Object.values(error.errors).map(
+        (err: any) => err.message,
+      );
+      throw new BadRequestException(
+        `Validation failed: ${errorMessages.join(', ')}`,
+      );
+    }
+
+    if (error.name === 'CastError') {
+      throw new BadRequestException(
+        `Invalid data type for field: ${error.path}`,
+      );
+    }
+
+    if (
+      error instanceof BadRequestException ||
+      error instanceof NotFoundException
+    ) {
+      throw error;
+    }
+
+    if (
+      error.message?.includes('invalid date') ||
+      error.message?.includes('date format')
+    ) {
+      throw new BadRequestException(
+        'Invalid date format. Please use YYYY-MM-DD format',
+      );
+    }
+
+    throw new InternalServerErrorException(
+      error.message || 'An unexpected error occurred while creating order',
+    );
+  }
+
+  async findAll(): Promise<Orders[]> {
+    const [result] = await this.ordersModel.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+        },
+      },
+      {
+        $lookup: {
+          from: 'clients',
+          localField: 'clientId',
+          foreignField: '_id',
+          as: 'client',
+        },
+      },
+      {
+        $unwind: {
+          path: '$client',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+    ]);
+
+    if (!result) {
+      throw new NotFoundException('Order not found');
+    }
+
+    return result;
+  }
+
+  async findOne(id: string): Promise<any> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid order ID');
+    }
+
+    const [result] = await this.ordersModel.aggregate([
+      {
+        $match: {
+          _id: new Types.ObjectId(id),
+          isDeleted: false,
+        },
+      },
+      {
+        $limit: 1,
+      },
+      {
+        $lookup: {
+          from: 'clients',
+          localField: 'clientId',
+          foreignField: '_id',
+          as: 'client',
+        },
+      },
+      {
+        $unwind: {
+          path: '$client',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          // استبدال clientId ببيانات العميل الكاملة
+          clientId: '$client',
+          // إضافة الحقول المطلوبة في المستوى الرئيسي
+          clientName: {
+            $concat: [
+              '$client.firstName',
+              ' ',
+              '$client.middleName',
+              ' ',
+              '$client.lastName',
+            ],
+          },
+          clientNumber: '$client.clientNumber',
+        },
+      },
+      {
+        $project: {
+          client: 0, // إزالة حقل client المنفصل
+          'clientId.__v': 0,
+          'clientId.orderIds': 0,
+          'clientId.isDeleted': 0,
+        },
+      },
+    ]);
+
+    if (!result) {
+      throw new NotFoundException('Order not found');
+    }
+
+    return result;
+  }
 
   async update(id: string, updateOrderDto: any): Promise<Orders> {
     if (!Types.ObjectId.isValid(id)) {

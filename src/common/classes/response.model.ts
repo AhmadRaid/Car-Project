@@ -35,7 +35,7 @@ export class ResponseModel<T> {
     message: string,
     status: string = 'success',
   ): Promise<ResponseModel<any>> {
-    const translatedMessage = await ResponseModel.i18n.t(`common.${message}`, {
+    const translatedMessage = await ResponseModel.i18n.t(`${message}`, {
       lang: I18nContext.current().lang,
     });
     console.log('translatedMessage ', translatedMessage);

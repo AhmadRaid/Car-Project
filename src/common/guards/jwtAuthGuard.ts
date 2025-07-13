@@ -27,13 +27,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
     const token = this.extractTokenFromHeader(request.headers.authorization);
 
-  //  await this.validateTokenNotBlacklisted(token);
+    //  await this.validateTokenNotBlacklisted(token);
 
     const decoded = this.verifyToken(token);
 
-    const admin = await this.findUserById(decoded._id);
+    const user = await this.findUserById(decoded._id);
 
-    request.user = admin;
+    request.user = user;
 
     return true;
   }
@@ -47,46 +47,25 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
     const token = authorization.split(' ')[1];
     if (!token) {
-      throw new UnauthorizedException(this.i18n.t('auth.errors.tokenNotFound'));
+      throw new UnauthorizedException('التوكن غير موجود');
     }
-
-    console.log('2222222222222222',token);
-    
 
     return token;
   }
-
-  // private async validateTokenNotBlacklisted(token: string): Promise<void> {
-  //   const isBlacklisted = await this.tokenService.isTokenBlacklisted(token);
-  //   if (isBlacklisted) {
-  //     throw new UnauthorizedException(
-  //       this.i18n.t('auth.errors.tokenBlacklisted'),
-  //     );
-  //   }
-  // }
 
   private verifyToken(token: string): any {
     try {
       return this.jwtService.verify(token);
     } catch (err) {
-      throw new UnauthorizedException(this.i18n.t('auth.errors.invalidToken'));
+      throw new UnauthorizedException('التوكن غير صحيح');
     }
   }
 
   private async findUserById(userId: string): Promise<User> {
-    const user = await this.userModel.findOne({ _id: userId });
-    if (!user) {
-      throw new UnauthorizedException(this.i18n.t('auth.errors.userNotFound'));
+    const employee = await this.userModel.findOne({ _id: userId });
+    if (!employee) {
+      throw new UnauthorizedException('الموظف غير مسجل');
     }
-    return user;
-  }
-
-  private async findAdminById(userId: string): Promise<User> {
-    
-    const user = await this.userModel.findOne({ _id: userId, role: 'admin' });
-    if (!user) {
-      throw new UnauthorizedException(this.i18n.t('auth.errors.adminNotFound'));
-    }
-    return user;
+    return employee;
   }
 }

@@ -1,3 +1,4 @@
+import { AuthRequest } from './../../interfaces/AuthRequest';
 import {
   Controller,
   Post,
@@ -10,6 +11,7 @@ import {
   NotFoundException,
   UseGuards,
   Patch,
+  Req,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';
 import { OrdersService } from './orders.service';
@@ -17,15 +19,23 @@ import { AddGuaranteeDto } from './dto/create-guarantee.dto';
 import { Role } from 'src/common/decorators/roles.decorator';
 import { userRoles } from 'src/common/enum/userRoles.enum';
 import { AddServicesToOrderDto } from './dto/add-service.dto';
+import { CreateOrderForExistingClientDto } from './dto/add-order';
 
 @Controller('orders')
-//@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
-  @Post()
-  async create(@Body() createOrderDto: any) {
-    return this.ordersService.create(createOrderDto);
+  @Post(':clientId')
+  async createOrderForExistingClient(
+    @Param('clientId') clientId: string,
+    @Body() addServiceDto: CreateOrderForExistingClientDto,
+  ) {
+      
+    return this.ordersService.createOrderForExistingClient(
+      clientId,
+      addServiceDto,
+    );
   }
 
   @Get()
