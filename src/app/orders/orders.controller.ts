@@ -26,7 +26,7 @@ import { CreateOrderForExistingClientDto } from './dto/add-order';
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
-  @Post(':clientId')
+  @Post('add-order/:clientId')
   async createOrderForExistingClient(
     @Param('clientId') clientId: string,
     @Body() addServiceDto: CreateOrderForExistingClientDto,
