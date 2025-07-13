@@ -22,7 +22,7 @@ import { AddServicesToOrderDto } from './dto/add-service.dto';
 import { CreateOrderForExistingClientDto } from './dto/add-order';
 
 @Controller('orders')
-@UseGuards(JwtAuthGuard)
+//@UseGuards(JwtAuthGuard)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
