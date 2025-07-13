@@ -29,7 +29,7 @@ export class OrdersController {
   @Post('add-order/:clientId')
   async createOrderForExistingClient(
     @Param('clientId') clientId: string,
-    @Body() addServiceDto: CreateOrderForExistingClientDto,
+    @Body() addServiceDto: any,
   ) {
       
     return this.ordersService.createOrderForExistingClient(

@@ -102,11 +102,7 @@ export class OrdersService {
         );
       }
 
-      if (service.servicePrice === undefined || service.servicePrice < 0) {
-        throw new BadRequestException(
-          'Valid service price is required for each service',
-        );
-      }
+
 
       // التحقق من تاريخ الضمان إذا كان موجوداً
       if (service.guarantee) {

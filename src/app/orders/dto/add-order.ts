@@ -23,6 +23,7 @@ class ServiceDto {
   @IsString()
   serviceType: string;
 
+    @IsOptional()
   @IsNumber()
   servicePrice: number;
 
