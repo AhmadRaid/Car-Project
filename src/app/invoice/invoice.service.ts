@@ -301,6 +301,7 @@ export class InvoiceService {
 
   // New method to get financial reports
   async getFinancialReports(clientId: string) {
+    
     try {
       // Validate client existence
       const client = await this.clientService.findOne(clientId);
@@ -342,9 +343,10 @@ export class InvoiceService {
             _id: 0, // Exclude _id from the final output
             client: {
               _id: '$clientInfo._id',
-              fullName: '$clientInfo.fullName',
+              firstName: '$clientInfo.firstName',
+              middleName: '$clientInfo.middleName',
+              lastName: '$clientInfo.lastName',
               clientNumber: '$clientInfo.clientNumber',
-              email: '$clientInfo.email',
               phone: '$clientInfo.phone',
             },
             totalInvoices: 1,
@@ -362,6 +364,7 @@ export class InvoiceService {
           client: {
             _id: client._id,
             firstName: client.firstName,
+            lastName: client.lastName,
             clientNumber: client.clientNumber,
             email: client.email,
             phone: client.phone,
