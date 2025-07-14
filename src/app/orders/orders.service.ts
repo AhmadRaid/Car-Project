@@ -35,28 +35,24 @@ export class OrdersService {
   }> {
     try {
       console.log('1111111111111');
-      
+
       this.validateCreateOrderDto(createOrderDto);
 
-            console.log('222222222222222');
-
+      console.log('222222222222222');
 
       const client = await this.findClientById(clientId);
 
-            console.log('333333333333333333333');
-
+      console.log('333333333333333333333');
 
       const order = await this.createOrder(client, createOrderDto);
 
-            console.log('444444444444444');
-
+      console.log('444444444444444');
 
       let invoice = null;
       if (order) {
         invoice = await this.createInvoice(client, order, createOrderDto);
 
-              console.log('5555555555555');
-
+        console.log('5555555555555');
 
         await this.ordersModel.findByIdAndUpdate(
           order._id,
@@ -74,7 +70,7 @@ export class OrdersService {
     }
   }
 
-  private validateCreateOrderDto(dto: CreateOrderForExistingClientDto): void {
+  private validateCreateOrderDto(dto: any): void {
     // التحقق من وجود الخدمات
     if (!dto.services || dto.services.length === 0) {
       throw new BadRequestException('At least one service is required');
@@ -101,8 +97,6 @@ export class OrdersService {
           'Service type is required for each service',
         );
       }
-
-
 
       // التحقق من تاريخ الضمان إذا كان موجوداً
       if (service.guarantee) {
