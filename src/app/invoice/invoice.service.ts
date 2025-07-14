@@ -1,3 +1,4 @@
+// src/invoice/invoice.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -8,7 +9,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ClientService } from '../client/client.service';
 import { OrdersService } from '../orders/orders.service';
-import { Invoice } from 'src/schemas/invoice.schema';
+import { Invoice } from 'src/schemas/invoice.schema'; // Ensure this path is correct
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 
 @Injectable()
@@ -21,7 +22,6 @@ export class InvoiceService {
 
   async create(createInvoiceDto: CreateInvoiceDto) {
     try {
-      // التحقق من وجود العميل والطلب
       await this.validateClientAndOrder(
         createInvoiceDto.clientId,
         createInvoiceDto.orderId,
@@ -210,7 +210,7 @@ export class InvoiceService {
     });
 
     return invoice;
-}
+  }
 
   async findOne(invoiceId: string) {
     const [invoice] = await this.invoiceModel.aggregate([
@@ -297,6 +297,87 @@ export class InvoiceService {
     return this.invoiceModel
       .find({ clientId, isDeleted: false })
       .sort({ createdAt: -1 });
+  }
+
+  // New method to get financial reports
+  async getFinancialReports(clientId: string) {
+    try {
+      // Validate client existence
+      const client = await this.clientService.findOne(clientId);
+      if (!client) {
+        throw new NotFoundException('Client not found');
+      }
+
+      const report = await this.invoiceModel.aggregate([
+        {
+          $match: {
+            clientId: new Types.ObjectId(clientId),
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: '$clientId',
+            totalInvoices: { $sum: 1 },
+            totalSubtotal: { $sum: '$subtotal' },
+            totalTaxAmount: { $sum: '$taxAmount' },
+            totalAmount: { $sum: '$totalAmount' },
+            averageInvoiceAmount: { $avg: '$totalAmount' },
+            // Add more aggregation fields as needed for your financial report
+          },
+        },
+        {
+          $lookup: {
+            from: 'clients',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'clientInfo',
+          },
+        },
+        {
+          $unwind: '$clientInfo',
+        },
+        {
+          $project: {
+            _id: 0, // Exclude _id from the final output
+            client: {
+              _id: '$clientInfo._id',
+              fullName: '$clientInfo.fullName',
+              clientNumber: '$clientInfo.clientNumber',
+              email: '$clientInfo.email',
+              phone: '$clientInfo.phone',
+            },
+            totalInvoices: 1,
+            totalSubtotal: 1,
+            totalTaxAmount: 1,
+            totalAmount: 1,
+            averageInvoiceAmount: 1,
+          },
+        },
+      ]).exec();
+
+      if (report.length === 0) {
+        // If no invoices found for the client, return a basic report
+        return {
+          client: {
+            _id: client._id,
+            firstName: client.firstName,
+            clientNumber: client.clientNumber,
+            email: client.email,
+            phone: client.phone,
+          },
+          totalInvoices: 0,
+          totalSubtotal: 0,
+          totalTaxAmount: 0,
+          totalAmount: 0,
+          averageInvoiceAmount: 0,
+        };
+      }
+
+      return report[0];
+    } catch (error) {
+      this.handleInvoiceError(error);
+    }
   }
 
   async update(id: string, updateInvoiceDto: any) {

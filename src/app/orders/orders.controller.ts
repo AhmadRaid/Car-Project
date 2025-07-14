@@ -29,12 +29,13 @@ export class OrdersController {
   @Post('add-order/:clientId')
   async createOrderForExistingClient(
     @Param('clientId') clientId: string,
-    @Body() addServiceDto: any,
+    @Body() orderData: any,
   ) {
-      
+    console.log('555555555555', orderData);
+
     return this.ordersService.createOrderForExistingClient(
       clientId,
-      addServiceDto,
+      orderData,
     );
   }
 

@@ -1,3 +1,4 @@
+// src/invoice/invoice.controller.ts
 import {
   Controller,
   Get,
@@ -47,6 +48,12 @@ export class InvoiceController {
   @Get('by-client/:clientId')
   async findByClient(@Param('clientId') clientId: string) {
     return this.invoiceService.findByClient(clientId);
+  }
+
+  // New endpoint for financial reports
+  @Get('financial-reports/:clientId')
+  async getFinancialReports(@Param('clientId') clientId: string) {
+    return this.invoiceService.getFinancialReports(clientId);
   }
 
   @Patch(':id')
