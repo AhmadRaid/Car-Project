@@ -34,25 +34,15 @@ export class OrdersService {
     invoice?: InvoiceDocument;
   }> {
     try {
-      console.log('1111111111111');
-
       this.validateCreateOrderDto(createOrderDto);
-
-      console.log('222222222222222');
 
       const client = await this.findClientById(clientId);
 
-      console.log('333333333333333333333');
-
       const order = await this.createOrder(client, createOrderDto);
-
-      console.log('444444444444444');
 
       let invoice = null;
       if (order) {
         invoice = await this.createInvoice(client, order, createOrderDto);
-
-        console.log('5555555555555');
 
         await this.ordersModel.findByIdAndUpdate(
           order._id,
@@ -182,7 +172,7 @@ export class OrdersService {
 
   private calculateSubtotal(services: ServiceDto[]): number {
     return services.reduce(
-      (total, service) => total + (service.servicePrice || 0),
+      (total, service) => total + (service.servicePrice || 50),
       0,
     );
   }

@@ -177,7 +177,7 @@ export class ClientService {
    */
   private calculateSubtotal(services: ServiceDto[]): number {
     return services.reduce(
-      (total, service) => total + (service.servicePrice || 0),
+      (total, service) => total + 50,
       0,
     );
   }
@@ -275,7 +275,7 @@ export class ClientService {
       const preparedService: any = {
         serviceType: service.serviceType,
         dealDetails: service.dealDetails,
-        servicePrice: service.servicePrice,
+        servicePrice: 50,
         guarantee: {
           typeGuarantee: service.guarantee.typeGuarantee,
           startDate: new Date(service.guarantee.startDate),
@@ -436,7 +436,7 @@ export class ClientService {
           _id: new Types.ObjectId(),
           serviceType: serviceDto.serviceType,
           dealDetails: serviceDto.dealDetails,
-          servicePrice: serviceDto.servicePrice,
+          servicePrice: 50,
           guarantee: {
             typeGuarantee: serviceDto.guarantee.typeGuarantee,
             startDate: new Date(serviceDto.guarantee.startDate),
