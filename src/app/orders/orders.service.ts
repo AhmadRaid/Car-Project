@@ -307,12 +307,12 @@ export class OrdersService {
           from: 'clients', 
           localField: 'clientId',
           foreignField: '_id', 
-          as: 'clients', 
+          as: 'client', 
         },
       },
       {
         $unwind: {
-          path: '$clients',
+          path: '$client',
           preserveNullAndEmptyArrays: true,
         },
       },
