@@ -31,8 +31,6 @@ export class OrdersController {
     @Param('clientId') clientId: string,
     @Body() orderData: any,
   ) {
-    console.log('555555555555', orderData);
-
     return this.ordersService.createOrderForExistingClient(
       clientId,
       orderData,

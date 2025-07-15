@@ -295,8 +295,8 @@ export class OrdersService {
     );
   }
 
-  async findAll(): Promise<Orders[]> {
-    const [result] = await this.ordersModel.aggregate([
+ async findAll(): Promise<Orders[]> {
+    return this.ordersModel.aggregate([
       {
         $match: {
           isDeleted: false,
@@ -304,25 +304,24 @@ export class OrdersService {
       },
       {
         $lookup: {
-          from: 'clients',
+          from: 'clients', 
           localField: 'clientId',
-          foreignField: '_id',
-          as: 'client',
+          foreignField: '_id', 
+          as: 'clients', 
         },
       },
       {
         $unwind: {
-          path: '$client',
+          path: '$clients',
           preserveNullAndEmptyArrays: true,
         },
       },
-    ]);
-
-    if (!result) {
-      throw new NotFoundException('Order not found');
-    }
-
-    return result;
+      {
+        $sort: {
+          createdAt: -1, 
+        },
+      },
+    ]).exec();
   }
 
   async findOne(id: string): Promise<any> {
