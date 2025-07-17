@@ -25,7 +25,6 @@ import { NewPasswordDto } from './dto/new-password.dto';
 import { ForgetPasswordDto } from './dto/forgetPassword.dto';
 import { TokenService } from 'src/common/token/token.service';
 import { JwtOrDeviceRequest } from 'src/interfaces/JwtOrDeviceRequest';
-import { JwtOrDeviceAuthGuard } from 'src/common/guards/JwtOrDeviceAuthGuard';
 import { userRoles } from 'src/common/enum/userRoles.enum';
 import { Role } from 'src/common/decorators/roles.decorator';
 

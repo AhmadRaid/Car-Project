@@ -6,21 +6,18 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { AuthGuard } from '@nestjs/passport';
+import { I18nService } from 'nestjs-i18n';
 import { TokenService } from '../token/token.service';
-import { Reflector } from '@nestjs/core';
-import { I18nService } from 'nestjs-i18n'; // Import the translation service
 import { Model } from 'mongoose';
-import { Admin } from 'src/schemas/admins.schema';
-import { userRoles } from '../enum/userRoles.enum';
+import { User } from 'src/schemas/user.schema';
 
 @Injectable()
 export class JwtAuthAdminGuard extends AuthGuard('jwt') {
   constructor(
     private readonly jwtService: JwtService,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly tokenService: TokenService,
-    @InjectModel(Admin.name) private readonly adminModel: Model<Admin>,
-    private readonly reflector: Reflector,
-    private readonly i18n: I18nService, // Inject translation service
+    private readonly i18n: I18nService,
   ) {
     super();
   }
@@ -30,15 +27,13 @@ export class JwtAuthAdminGuard extends AuthGuard('jwt') {
 
     const token = this.extractTokenFromHeader(request.headers.authorization);
 
-    await this.validateTokenNotBlacklisted(token);
+    //  await this.validateTokenNotBlacklisted(token);
 
     const decoded = this.verifyToken(token);
 
-    const admin = await this.findAdminById(decoded.ـid);
+    const admin = await this.findAdminById(decoded._id);
 
-    request.user = admin;
-
-    await this.validateAdminRole(context, admin);
+    request.admin = admin;
 
     return true;
   }
@@ -46,65 +41,34 @@ export class JwtAuthAdminGuard extends AuthGuard('jwt') {
   private extractTokenFromHeader(authorization?: string): string {
     if (!authorization || !authorization.startsWith('Bearer ')) {
       throw new UnauthorizedException(
-        this.i18n.t('auth.errors.missingOrInvalidHeader'),
+        this.i18n.t('عنوان التفويض مفقود أو غير صالح'),
       );
     }
 
     const token = authorization.split(' ')[1];
     if (!token) {
-      throw new UnauthorizedException(
-        this.i18n.t('auth.errors.tokenNotFound'),
-      );
+      throw new UnauthorizedException('عنوان التفويض غير موجود');
     }
 
     return token;
-  }
-
-  private async validateTokenNotBlacklisted(token: string): Promise<void> {
-    const isBlacklisted = await this.tokenService.isTokenBlacklisted(token);
-    if (isBlacklisted) {
-      throw new UnauthorizedException(
-        this.i18n.t('auth.errors.tokenBlacklisted'),
-      );
-    }
   }
 
   private verifyToken(token: string): any {
     try {
       return this.jwtService.verify(token);
     } catch (err) {
-      throw new UnauthorizedException(
-        this.i18n.t('auth.errors.invalidToken'),
-      );
+      throw new UnauthorizedException('عنوان التفويض غير صحيح');
     }
   }
 
-  private async findAdminById(adminId: string): Promise<Admin> {
-    const admin = await this.adminModel.findOne({ _id: adminId });
-    if (!admin) {
-      throw new UnauthorizedException(
-        this.i18n.t('auth.errors.adminNotFound'),
-      );
+  private async findAdminById(userId: string): Promise<User> {
+    const employee = await this.userModel.findOne({
+      _id: userId,
+      role: 'admin',
+    });
+    if (!employee) {
+      throw new UnauthorizedException('ليس لديك صلاحية الدخول لهذه الصفحة');
     }
-    return admin;
-  }
-
-  private async validateAdminRole(
-    context: ExecutionContext,
-    admin: Admin,
-  ): Promise<void> {
-    const roles = this.reflector.get<userRoles[]>(
-      'roles',
-      context.getHandler(),
-    );
-
-    if (roles && !roles.includes(admin.role)) {
-      throw new UnauthorizedException(
-        await this.i18n.t('auth.errors.roleUnauthorized', {
-          args: { roles: roles.join(', ') },
-        }),
-      );
-    }
-    
+    return employee;
   }
 }

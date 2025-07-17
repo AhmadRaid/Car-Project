@@ -56,14 +56,14 @@ export class OrdersController {
     return order;
   }
 
-  @Put(':id')
-  async update(@Param('id') id: string, @Body() updateOrderDto: any) {
-    return this.ordersService.update(id, updateOrderDto);
+  @Put(':orderId')
+  async update(@Param('orderId') orderId: string, @Body() updateOrderDto: any) {
+    return this.ordersService.update(orderId, updateOrderDto);
   }
 
-  @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return this.ordersService.remove(id);
+  @Delete(':orderId')
+  async remove(@Param('orderId') orderId: string) {
+    return this.ordersService.remove(orderId);
   }
 
   @Get('client/:clientId')

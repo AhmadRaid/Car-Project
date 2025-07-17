@@ -41,13 +41,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   private extractTokenFromHeader(authorization?: string): string {
     if (!authorization || !authorization.startsWith('Bearer ')) {
       throw new UnauthorizedException(
-        this.i18n.t('auth.errors.missingOrInvalidHeader'),
+        this.i18n.t('عنوان التفويض مفقود أو غير صالح'),
       );
     }
 
     const token = authorization.split(' ')[1];
     if (!token) {
-      throw new UnauthorizedException('التوكن غير موجود');
+      throw new UnauthorizedException('عنوان التفويض غير موجود');
     }
 
     return token;
@@ -57,7 +57,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     try {
       return this.jwtService.verify(token);
     } catch (err) {
-      throw new UnauthorizedException('التوكن غير صحيح');
+      throw new UnauthorizedException('عنوان التفويض غير صحيح');
     }
   }
 
